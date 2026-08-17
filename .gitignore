@@ -151,3 +151,14 @@ cython_debug/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Project Runtime Data & Next.js
+backend/data/
+backend/venv/
+backend/server.log
+node_modules/
+.next/
+out/
+dist/
+*.log
+
