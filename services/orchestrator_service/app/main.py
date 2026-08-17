@@ -540,26 +540,35 @@ You write clean, modular, production-ready code with rigorous adherence to best 
         file_preview = (req.active_file_content[:15000] + "\n...[truncated]") if req.active_file_content and len(req.active_file_content) > 15000 else (req.active_file_content or "")
         system_prompt += f"\n\n### Current Active Editor File: `{req.active_file_path}`\n```\n{file_preview}\n```\n"
 
-    full_prompt = f"System: {system_prompt}\n\n"
+    # Build clean structured message history for Ollama /api/chat
+    ollama_messages = [{"role": "system", "content": system_prompt}]
     for msg in req.messages:
-        role_label = "User" if msg.role == "user" else "Assistant"
-        full_prompt += f"{role_label}: {msg.content}\n\n"
-    full_prompt += "Assistant: "
+        content_str = msg.content.strip()
+        # Skip the static frontend welcome banner
+        if msg.role == "assistant" and ("👋 **Hello! I am Archon Agent" in content_str or "👋 Hello! I am Archon Agent" in content_str):
+            continue
+        if content_str:
+            ollama_messages.append({"role": msg.role, "content": content_str})
 
     async def token_stream():
         async with httpx.AsyncClient() as client:
             try:
                 async with client.stream(
                     "POST",
-                    f"{OLLAMA_URL}/api/generate",
-                    json={"model": req.model, "prompt": full_prompt, "stream": True, "options": {"temperature": req.temperature or 0.2}},
+                    f"{OLLAMA_URL}/api/chat",
+                    json={
+                        "model": req.model,
+                        "messages": ollama_messages,
+                        "stream": True,
+                        "options": {"temperature": req.temperature or 0.2}
+                    },
                     timeout=None
                 ) as response:
                     async for line in response.aiter_lines():
                         if line.strip():
                             try:
                                 chunk = json_module.loads(line)
-                                token = chunk.get("response", "")
+                                token = chunk.get("message", {}).get("content", "")
                                 if token:
                                     yield f"data: {json_module.dumps({'token': token})}\n\n"
                                 if chunk.get("done", False):
