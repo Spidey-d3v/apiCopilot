@@ -156,9 +156,12 @@ Thumbs.db
 backend/data/
 backend/venv/
 backend/server.log
+services/**/data/
+**/data/chroma_db/
 node_modules/
 .next/
 out/
 dist/
 *.log
+
 

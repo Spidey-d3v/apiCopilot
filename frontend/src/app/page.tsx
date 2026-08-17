@@ -336,8 +336,10 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const outputRef = useRef<HTMLDivElement>(null);
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+
   useEffect(() => {
-    fetch('http://127.0.0.1:8003/api/models')
+    fetch(`${API_BASE}/api/models`)
       .then(res => res.json())
       .then(data => {
         setModels(data.models || []);
@@ -345,11 +347,11 @@ export default function Home() {
       })
       .catch(err => console.error("Could not load models"));
 
-    fetch('http://127.0.0.1:8003/api/database')
+    fetch(`${API_BASE}/api/database`)
       .then(res => res.json())
       .then(data => setDbData(data))
       .catch(err => console.error("Could not load DB data"));
-  }, []);
+  }, [API_BASE]);
 
   // Auto-scroll output when tokens stream in
   useEffect(() => {
@@ -369,7 +371,7 @@ export default function Home() {
     try {
       // Stage 1: BM25 Lexical
       setPipelineStage(1);
-      const searchRes = await fetch('http://127.0.0.1:8003/api/search', {
+      const searchRes = await fetch(`${API_BASE}/api/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, model: selectedModel })
@@ -388,7 +390,7 @@ export default function Home() {
       // Stage 4: LLM Generation
       setPipelineStage(4);
 
-      const genRes = await fetch('http://127.0.0.1:8003/api/generate', {
+      const genRes = await fetch(`${API_BASE}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, model: selectedModel })
@@ -441,7 +443,7 @@ export default function Home() {
       setPipelineStage(-1);
     } catch (e) {
       console.error(e);
-      setGeneration("❌ **Connection error:** Could not reach the backend server on `127.0.0.1:8003`.");
+      setGeneration(`❌ **Connection error:** Could not reach the API Gateway on \`${API_BASE}\`.`);
       setPipelineStage(-1);
     }
     setLoading(false);
@@ -464,7 +466,7 @@ export default function Home() {
     
     setUploading(true);
     try {
-      const res = await fetch('http://127.0.0.1:8003/api/upload', {
+      const res = await fetch(`${API_BASE}/api/upload`, {
         method: 'POST',
         body: formData
       });
