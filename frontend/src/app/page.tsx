@@ -680,12 +680,31 @@ function VSCodeAgentIDE({
         setFoldedLines({});
         setTerminals(prev => prev.map(t => ({ ...t, cwd: data.project_path })));
         
-        // Refresh Tree
+        // Refresh File Explorer Tree immediately
         const treeRes = await fetch(`${apiBase}/api/workspace/tree`);
         if (treeRes.ok) {
           const treeData = await treeRes.json();
           setWorkspaceTree(treeData.tree || []);
         }
+
+        // Open README.md if present
+        setTimeout(async () => {
+          try {
+            const readmeRes = await fetch(`${apiBase}/api/workspace/file?path=README.md`);
+            if (readmeRes.ok) {
+              const fileData = await readmeRes.json();
+              const newTab = {
+                path: fileData.path,
+                name: fileData.filename,
+                content: fileData.content,
+                original: fileData.content
+              };
+              setOpenTabs([newTab]);
+              setActiveTabPath(fileData.path);
+              setEditorContent(fileData.content);
+            }
+          } catch (err) {}
+        }, 150);
       } else {
         const err = await res.json();
         alert(`Could not open folder: ${err.detail || 'Directory not found'}`);
@@ -790,16 +809,24 @@ function VSCodeAgentIDE({
           setGitBranch(data.git_branch);
         }
 
-        // Check if cd changed project
-        if (data.project_name && data.cwd !== currentProjectPath) {
+        // If directory changed via cd or command
+        if (data.project_name) {
           setCurrentProjectName(data.project_name);
+        }
+        if (data.cwd) {
           setCurrentProjectPath(data.cwd);
+        }
+
+        // Always refresh file explorer tree so created/deleted/renamed files or branch checkouts show up immediately
+        try {
           const treeRes = await fetch(`${apiBase}/api/workspace/tree`);
           if (treeRes.ok) {
             const treeData = await treeRes.json();
             setWorkspaceTree(treeData.tree || []);
+            if (treeData.root) setCurrentProjectName(treeData.root);
+            if (treeData.root_path) setCurrentProjectPath(treeData.root_path);
           }
-        }
+        } catch (e) {}
 
         setTerminals(prev => prev.map(t => t.id === activeTermId ? {
           ...t,

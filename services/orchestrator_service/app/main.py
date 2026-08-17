@@ -251,7 +251,12 @@ def normalize_workspace_path(p_str: str) -> Path:
         rest = cleaned[2:].lstrip("/")
         if os.name != 'nt' and os.path.exists(f"/mnt/{drive}"):
             return Path(f"/mnt/{drive}/{rest}").resolve()
-    return Path(cleaned).resolve()
+        return Path(cleaned).resolve()
+    
+    p = Path(cleaned)
+    if not p.is_absolute() and not cleaned.startswith("/"):
+        return (ACTIVE_WORKSPACE_ROOT / cleaned).resolve()
+    return p.resolve()
 
 def get_active_git_branch(directory: Path) -> str:
     """Returns the live git branch of the directory or 'no git' if not a repo."""
@@ -304,6 +309,11 @@ def open_workspace_project(req: OpenProjectRequest):
     if normalized_path not in RECENT_PROJECTS:
         RECENT_PROJECTS.insert(0, normalized_path)
 
+    try:
+        subprocess.run(["git", "config", "--global", "--add", "safe.directory", "*"], check=False)
+    except Exception:
+        pass
+
     return {
         "status": "success",
         "current_project": target_path.name,
@@ -330,6 +340,8 @@ async def terminal_exec(req: TerminalExecRequest):
             new_dir = Path.home()
         elif target_dir_str.startswith("/"):
             new_dir = Path(target_dir_str).resolve()
+        elif len(target_dir_str) >= 2 and target_dir_str[1] == ":":
+            new_dir = normalize_workspace_path(target_dir_str)
         else:
             new_dir = (ACTIVE_WORKSPACE_ROOT / target_dir_str).resolve()
         
