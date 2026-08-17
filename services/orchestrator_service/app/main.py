@@ -27,6 +27,14 @@ app.add_middleware(
 WORKSPACE_ROOT = Path(os.getenv("WORKSPACE_ROOT", str(Path(__file__).resolve().parent.parent.parent.parent)))
 IGNORED_DIRS = {".git", "venv", ".venv", "node_modules", ".next", "__pycache__", ".idea", ".vscode", "data", "chroma_db"}
 
+@app.on_event("startup")
+def ensure_git_safe_directory():
+    """Automatically ensures Git safe.directory '*' is configured for all repositories and mounts."""
+    try:
+        subprocess.run(["git", "config", "--global", "--add", "safe.directory", "*"], check=False)
+    except Exception:
+        pass
+
 class QueryRequest(BaseModel):
     query: str
     model: str = DEFAULT_MODEL
