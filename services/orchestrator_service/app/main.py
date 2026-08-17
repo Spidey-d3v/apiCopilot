@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
+from pathlib import Path
 import httpx
 import json as json_module
 import os
@@ -12,7 +13,7 @@ from .config import RAG_SERVICE_URL, INGESTION_SERVICE_URL, OLLAMA_URL, DEFAULT_
 app = FastAPI(
     title="Enterprise API Copilot Orchestrator Gateway",
     version="1.0.0",
-    description="Smart multi-model routing, prompt synthesis, and SSE stream gateway"
+    description="Smart multi-model routing, prompt synthesis, workspace explorer, and IDE Copilot Agent"
 )
 
 app.add_middleware(
@@ -22,10 +23,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+WORKSPACE_ROOT = Path(os.getenv("WORKSPACE_ROOT", str(Path(__file__).resolve().parent.parent.parent.parent)))
+IGNORED_DIRS = {".git", "venv", ".venv", "node_modules", ".next", "__pycache__", ".idea", ".vscode", "data", "chroma_db"}
+
 class QueryRequest(BaseModel):
     query: str
     model: str = DEFAULT_MODEL
     top_k: Optional[int] = 3
+
+class Message(BaseModel):
+    role: str  # "user" | "assistant" | "system"
+    content: str
+
+class AgentChatRequest(BaseModel):
+    messages: List[Message]
+    active_file_path: Optional[str] = None
+    active_file_content: Optional[str] = None
+    model: str = DEFAULT_MODEL
+    temperature: Optional[float] = 0.2
+
+class FileContentRequest(BaseModel):
+    path: str
+    content: Optional[str] = None
+
+class CreateFileRequest(BaseModel):
+    path: str
+    is_directory: bool = False
 
 @app.get("/health")
 async def health():
@@ -105,7 +128,6 @@ async def upload_document(file: UploadFile = File(...)):
     file_bytes = await file.read()
     
     async with httpx.AsyncClient(timeout=60.0) as client:
-        # Step 1: Send to Ingestion Service for parsing
         try:
             parse_resp = await client.post(
                 f"{INGESTION_SERVICE_URL}/api/parse-file",
@@ -121,7 +143,6 @@ async def upload_document(file: UploadFile = File(...)):
         if not chunks:
             return {"message": "No endpoints or sections found in file.", "chunks": []}
 
-        # Step 2: Send parsed chunks to RAG Service for vector embedding and indexing
         try:
             ingest_resp = await client.post(
                 f"{RAG_SERVICE_URL}/api/ingest",
@@ -140,7 +161,6 @@ async def upload_document(file: UploadFile = File(...)):
 @app.post("/api/generate")
 async def generate(req: QueryRequest):
     """Smart Orchestrator generation: retrieves re-ranked context, synthesizes prompt, and streams tokens."""
-    # Step 1: Retrieve top cross-encoder re-ranked context from RAG Service
     context_text = ""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -157,7 +177,6 @@ async def generate(req: QueryRequest):
     except Exception as e:
         print(f"Warning: RAG context retrieval failed: {e}")
 
-    # Step 2: Synthesize structured system prompt
     prompt = f"""You are an Enterprise API Copilot, an expert AI assistant specializing in API integrations, endpoint specifications, and developer code synthesis.
 Answer the developer's question accurately, completely, and concisely based on the provided API documentation context below.
 Provide production-ready code examples (e.g. cURL, Python, TypeScript) with correct endpoints, parameters, and headers where applicable.
@@ -169,7 +188,6 @@ Provide production-ready code examples (e.g. cURL, Python, TypeScript) with corr
 {req.query}
 """
 
-    # Step 3: Stream SSE tokens from Ollama
     async def token_stream():
         async with httpx.AsyncClient() as client:
             try:
@@ -194,5 +212,141 @@ Provide production-ready code examples (e.g. cURL, Python, TypeScript) with corr
             except Exception as e:
                 err_msg = str(e) if str(e) else repr(e)
                 yield f"data: {json_module.dumps({'error': f'Ollama Connection Error: {err_msg}'})}\n\n"
+
+    return StreamingResponse(token_stream(), media_type="text/event-stream")
+
+# ── Workspace File Explorer & IDE Endpoints ───────────────────────────────
+
+@app.get("/api/workspace/tree")
+def get_workspace_tree(subpath: str = ""):
+    """Returns a recursive file & folder tree of the project workspace."""
+    target_dir = (WORKSPACE_ROOT / subpath).resolve()
+    if not str(target_dir).startswith(str(WORKSPACE_ROOT)):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    def build_tree(dir_path: Path):
+        items = []
+        try:
+            entries = sorted(os.listdir(dir_path), key=lambda x: (not os.path.isdir(dir_path / x), x.lower()))
+            for entry in entries:
+                if entry in IGNORED_DIRS or entry.startswith("."):
+                    continue
+                full_path = dir_path / entry
+                rel_path = str(full_path.relative_to(WORKSPACE_ROOT)).replace("\\", "/")
+                if full_path.is_dir():
+                    items.append({
+                        "name": entry,
+                        "path": rel_path,
+                        "type": "directory",
+                        "children": build_tree(full_path)
+                    })
+                else:
+                    ext = full_path.suffix.lower().lstrip(".")
+                    items.append({
+                        "name": entry,
+                        "path": rel_path,
+                        "type": "file",
+                        "extension": ext,
+                        "size": full_path.stat().st_size
+                    })
+        except Exception as e:
+            pass
+        return items
+
+    return {
+        "root": str(WORKSPACE_ROOT.name),
+        "tree": build_tree(target_dir)
+    }
+
+@app.get("/api/workspace/file")
+def read_workspace_file(path: str):
+    """Reads the raw text content of a workspace file."""
+    target_file = (WORKSPACE_ROOT / path).resolve()
+    if not str(target_file).startswith(str(WORKSPACE_ROOT)) or not target_file.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+    try:
+        with open(target_file, "r", encoding="utf-8", errors="replace") as f:
+            content = f.read()
+        return {"path": path, "content": content, "filename": target_file.name}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/workspace/file")
+def save_workspace_file(req: FileContentRequest):
+    """Saves updated text content to a workspace file."""
+    target_file = (WORKSPACE_ROOT / req.path).resolve()
+    if not str(target_file).startswith(str(WORKSPACE_ROOT)):
+        raise HTTPException(status_code=403, detail="Access denied")
+    try:
+        target_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(target_file, "w", encoding="utf-8") as f:
+            f.write(req.content or "")
+        return {"status": "success", "path": req.path, "bytes_written": len(req.content or "")}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/workspace/create")
+def create_workspace_item(req: CreateFileRequest):
+    """Creates a new file or directory in the workspace."""
+    target_path = (WORKSPACE_ROOT / req.path).resolve()
+    if not str(target_path).startswith(str(WORKSPACE_ROOT)):
+        raise HTTPException(status_code=403, detail="Access denied")
+    try:
+        if req.is_directory:
+            target_path.mkdir(parents=True, exist_ok=True)
+        else:
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            if not target_path.exists():
+                target_path.touch()
+        return {"status": "success", "path": req.path}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ── Copilot Agent Multi-Turn Chat Endpoint ────────────────────────────────
+
+@app.post("/api/agent/chat")
+async def agent_chat(req: AgentChatRequest):
+    """Multi-turn Copilot Agent endpoint with active file context and full chat history."""
+    system_prompt = """You are Copilot Agent, an elite AI pair programmer and software architect embedded directly into the developer's IDE.
+You write clean, modular, production-ready code with rigorous adherence to best practices.
+When asked to write, inspect, or refactor code:
+1. Provide concise, high-signal explanations.
+2. Output code blocks with precise language tags (e.g. ```python, ```typescript, ```json, ```yaml, ```bash, ```css, ```html).
+3. When refactoring or adding features to the active file, provide clean, drop-in replacement snippets.
+"""
+    if req.active_file_path:
+        file_preview = (req.active_file_content[:15000] + "\n...[truncated]") if req.active_file_content and len(req.active_file_content) > 15000 else (req.active_file_content or "")
+        system_prompt += f"\n\n### Current Active Editor File: `{req.active_file_path}`\n```\n{file_preview}\n```\n"
+
+    full_prompt = f"System: {system_prompt}\n\n"
+    for msg in req.messages:
+        role_label = "User" if msg.role == "user" else "Assistant"
+        full_prompt += f"{role_label}: {msg.content}\n\n"
+    full_prompt += "Assistant: "
+
+    async def token_stream():
+        async with httpx.AsyncClient() as client:
+            try:
+                async with client.stream(
+                    "POST",
+                    f"{OLLAMA_URL}/api/generate",
+                    json={"model": req.model, "prompt": full_prompt, "stream": True, "options": {"temperature": req.temperature or 0.2}},
+                    timeout=None
+                ) as response:
+                    async for line in response.aiter_lines():
+                        if line.strip():
+                            try:
+                                chunk = json_module.loads(line)
+                                token = chunk.get("response", "")
+                                if token:
+                                    yield f"data: {json_module.dumps({'token': token})}\n\n"
+                                if chunk.get("done", False):
+                                    yield f"data: {json_module.dumps({'done': True})}\n\n"
+                                    break
+                            except json_module.JSONDecodeError:
+                                continue
+            except Exception as e:
+                err_msg = str(e) if str(e) else repr(e)
+                yield f"data: {json_module.dumps({'error': f'Agent Inference Error: {err_msg}'})}\n\n"
 
     return StreamingResponse(token_stream(), media_type="text/event-stream")
