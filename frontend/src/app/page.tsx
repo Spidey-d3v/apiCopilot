@@ -75,6 +75,12 @@ const Icons = {
       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
     </svg>
   ),
+  Copy: () => (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  ),
   Bolt: () => (
     <svg className="w-3.5 h-3.5 text-[#60a5fa]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
@@ -480,11 +486,10 @@ function FileTreeNode({
   );
 }
 
-/* -- Syntax Highlighting Engine (Token-level for VS Code vibe) -- */
+/* -- Syntax Highlighting Engine (Token-level) ---------------- */
 function highlightCodeLine(line: string) {
   if (!line) return <span>&nbsp;</span>;
   
-  // Quick token matcher for JS/TS/Python
   const tokens: React.ReactNode[] = [];
   const regex = /(\/\/.*$|#.*$|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`|\b(?:def|function|const|let|var|class|import|from|export|return|if|else|elif|for|while|try|except|catch|finally|async|await|type|interface|extends|implements|new|this|self|null|undefined|true|false|None|True|False)\b|\b(?:print|console|log|require|fetch|len|range|str|int|dict|list|set|open|useState|useEffect|useRef)\b|\b[a-zA-Z_$][a-zA-Z0-9_$]*(?=\s*\()|\b\d+\.?\d*\b|[{}()\[\].,;+\-*\/=<>!&|?:%])/g;
   
@@ -551,10 +556,10 @@ function VSCodeAgentIDE({
   // Project & Workspace State
   const [currentProjectName, setCurrentProjectName] = useState('AIDeV');
   const [currentProjectPath, setCurrentProjectPath] = useState('D:/AIDeV');
+  const [gitBranch, setGitBranch] = useState('main');
   const [recentProjects, setRecentProjects] = useState<string[]>(['D:/AIDeV', 'C:/Users/gaura']);
   const [showOpenProjectModal, setShowOpenProjectModal] = useState(false);
   const [projectPathInput, setProjectPathInput] = useState('');
-  const [createIfMissing, setCreateIfMissing] = useState(false);
   
   // File Explorer State
   const [workspaceTree, setWorkspaceTree] = useState<TreeNode[]>([]);
@@ -570,6 +575,11 @@ function VSCodeAgentIDE({
   const [saveStatus, setSaveStatus] = useState<string>('');
   const [foldedLines, setFoldedLines] = useState<Record<number, boolean>>({});
   
+  // Synchronized Scroll Refs
+  const gutterRef = useRef<HTMLDivElement>(null);
+  const syntaxRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
   // Layout & Activity State
   const [activeActivity, setActiveActivity] = useState<'explorer' | 'search' | 'copilot' | 'diagnostics'>('explorer');
   const [showBottomPanel, setShowBottomPanel] = useState<boolean>(true);
@@ -591,6 +601,7 @@ function VSCodeAgentIDE({
   ]);
   const [activeTermId, setActiveTermId] = useState('term-1');
   const [executingCmd, setExecutingCmd] = useState(false);
+  const [terminalCopied, setTerminalCopied] = useState(false);
   const termScrollRef = useRef<HTMLDivElement>(null);
   const termInputRef = useRef<HTMLInputElement>(null);
 
@@ -604,11 +615,21 @@ function VSCodeAgentIDE({
   const [agentInput, setAgentInput] = useState('');
   const [agentLoading, setAgentLoading] = useState(false);
   const [includeFileContext, setIncludeFileContext] = useState(true);
-  
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
-  // Load Projects and Workspace Tree
+  // Synchronized Editor Scrolling (Textarea -> Gutter & Syntax Highlight Layer)
+  const handleEditorScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
+    const target = e.currentTarget;
+    if (gutterRef.current) {
+      gutterRef.current.scrollTop = target.scrollTop;
+    }
+    if (syntaxRef.current) {
+      syntaxRef.current.scrollTop = target.scrollTop;
+      syntaxRef.current.scrollLeft = target.scrollLeft;
+    }
+  };
+
+  // Load Projects, Git Branch, and Workspace Tree
   const fetchProjectsAndTree = async () => {
     setLoadingTree(true);
     try {
@@ -617,6 +638,7 @@ function VSCodeAgentIDE({
         const projData = await projRes.json();
         setCurrentProjectName(projData.current_project || 'AIDeV');
         setCurrentProjectPath(projData.project_path || 'D:/AIDeV');
+        setGitBranch(projData.git_branch || 'main');
         setRecentProjects(projData.recent_projects || ['D:/AIDeV']);
         setTerminals(prev => prev.map(t => ({ ...t, cwd: projData.project_path || t.cwd })));
       }
@@ -649,6 +671,7 @@ function VSCodeAgentIDE({
         const data = await res.json();
         setCurrentProjectName(data.current_project);
         setCurrentProjectPath(data.project_path);
+        setGitBranch(data.git_branch || 'main');
         setRecentProjects(data.recent_projects || []);
         setShowOpenProjectModal(false);
         setOpenTabs([]);
@@ -702,6 +725,16 @@ function VSCodeAgentIDE({
     }
   };
 
+  // Terminal: Copy buffer text
+  const handleCopyTerminalBuffer = () => {
+    const currentTerm = terminals.find(t => t.id === activeTermId);
+    if (!currentTerm) return;
+    const allText = currentTerm.history.map(h => h.text).join('\n');
+    navigator.clipboard.writeText(allText);
+    setTerminalCopied(true);
+    setTimeout(() => setTerminalCopied(false), 2000);
+  };
+
   // Terminal: Run command
   const handleRunTerminalCommand = async () => {
     const currentTerm = terminals.find(t => t.id === activeTermId);
@@ -752,6 +785,10 @@ function VSCodeAgentIDE({
         const outputItems: Array<{ type: 'stdout' | 'stderr'; text: string }> = [];
         if (data.stdout) outputItems.push({ type: 'stdout', text: data.stdout });
         if (data.stderr) outputItems.push({ type: 'stderr', text: data.stderr });
+
+        if (data.git_branch) {
+          setGitBranch(data.git_branch);
+        }
 
         // Check if cd changed project
         if (data.project_name && data.cwd !== currentProjectPath) {
@@ -1047,13 +1084,13 @@ function VSCodeAgentIDE({
   const currentTerm = terminals.find(t => t.id === activeTermId) || terminals[0];
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#08090a] text-[#c9d1d9] overflow-hidden select-none border-0">
+    <div className="flex flex-col h-full w-full bg-[#08090a] text-[#c9d1d9] overflow-hidden border-0">
       
       {/* Main Workspace Row */}
       <div className="flex flex-1 overflow-hidden">
         
         {/* ── 1. Activity Bar (Left, 46px) ────────────────────────── */}
-        <div className="w-[46px] bg-[#060708] border-r border-[#161922] flex flex-col items-center py-2.5 justify-between z-10 flex-shrink-0">
+        <div className="w-[46px] bg-[#060708] border-r border-[#161922] flex flex-col items-center py-2.5 justify-between z-10 flex-shrink-0 select-none">
           <div className="flex flex-col items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-[#12151c] border border-[#1e232e] flex items-center justify-center p-1 shadow-sm" title="Archon Workspace">
               <img src="/aionlabs.svg" alt="Archon" className="w-full h-full object-contain" />
@@ -1110,7 +1147,7 @@ function VSCodeAgentIDE({
         </div>
 
         {/* ── 2. Sidebar (Explorer / Search, 250px) ────────────────── */}
-        <div className="w-[260px] bg-[#0c0e12] border-r border-[#161922] flex flex-col flex-shrink-0 overflow-hidden">
+        <div className="w-[260px] bg-[#0c0e12] border-r border-[#161922] flex flex-col flex-shrink-0 overflow-hidden select-none">
           
           {/* Project Title Bar & Open Folder Button */}
           <div className="px-3 py-2.5 border-b border-[#161922] flex justify-between items-center bg-[#090b0e]">
@@ -1179,7 +1216,7 @@ function VSCodeAgentIDE({
         <div className="flex-1 flex flex-col bg-[#090b0e] overflow-hidden">
           
           {/* Tab Bar */}
-          <div className="flex items-center bg-[#07080a] border-b border-[#161922] overflow-x-auto custom-scrollbar flex-shrink-0 h-[38px]">
+          <div className="flex items-center bg-[#07080a] border-b border-[#161922] overflow-x-auto custom-scrollbar flex-shrink-0 h-[38px] select-none">
             {openTabs.map(tab => {
               const isActive = tab.path === activeTabPath;
               const dirty = tab.content !== tab.original;
@@ -1218,7 +1255,7 @@ function VSCodeAgentIDE({
 
           {/* Breadcrumbs & Quick Toolbar */}
           {activeTab && (
-            <div className="flex justify-between items-center px-4 py-1.5 bg-[#0a0c10] border-b border-[#161922] text-[11px] font-mono text-[#64748b]">
+            <div className="flex justify-between items-center px-4 py-1.5 bg-[#0a0c10] border-b border-[#161922] text-[11px] font-mono text-[#64748b] select-none">
               <div className="flex items-center gap-1.5 truncate">
                 <span className="text-[#3b82f6]">{currentProjectName}</span>
                 {activeTab.path.split('/').map((seg, i, arr) => (
@@ -1251,11 +1288,14 @@ function VSCodeAgentIDE({
             </div>
           )}
 
-          {/* Code Textarea & Gutter with Syntax Highlighting & Code Folding */}
+          {/* Code Textarea & Gutter with Synchronized Scrolling */}
           {activeTab ? (
-            <div className="flex-1 flex overflow-hidden relative font-mono text-[12.5px] leading-[1.6]">
+            <div className="flex-1 flex overflow-hidden relative font-mono text-[12.5px] leading-[20px]">
               {/* Line Gutter with Folding Arrows */}
-              <div className="w-[54px] bg-[#07080a] border-r border-[#161922] text-right py-3 px-1 text-[11.5px] font-mono text-[#475569] select-none overflow-hidden leading-[1.6]">
+              <div
+                ref={gutterRef}
+                className="w-[54px] bg-[#07080a] border-r border-[#161922] text-right py-3 px-1 text-[11.5px] font-mono text-[#475569] select-none overflow-hidden leading-[20px] flex-shrink-0"
+              >
                 {rawLines.map((lineText, i) => {
                   const isFoldable = /^(?:\s*)(?:def|class|function|async\s+function|const\s+\w+\s*=\s*(?:async\s*)?\(|if|elif|else|for|while|try|catch).*(?:\{|:)\s*$/.test(lineText);
                   const isFolded = foldedLines[i];
@@ -1282,15 +1322,16 @@ function VSCodeAgentIDE({
 
               {/* Code Editor Container */}
               <div className="flex-1 relative overflow-hidden bg-[#090b0e]">
-                {/* Syntax Highlight Overlay */}
+                {/* Syntax Highlight Overlay (Synchronized with Textarea Scroll) */}
                 <div
+                  ref={syntaxRef}
                   aria-hidden="true"
-                  className="absolute inset-0 p-3 pointer-events-none whitespace-pre overflow-hidden leading-[1.6] select-none"
+                  className="absolute inset-0 p-3 pointer-events-none whitespace-pre overflow-hidden leading-[20px] select-none text-[12.5px] font-mono font-normal"
                 >
                   {rawLines.map((lineText, i) => (
                     <div
                       key={i}
-                      className={`h-[20px] ${cursorPos.line === i + 1 ? 'bg-[#1e293b]/25 rounded-sm' : ''}`}
+                      className={`h-[20px] leading-[20px] ${cursorPos.line === i + 1 ? 'bg-[#1e293b]/25 rounded-sm' : ''}`}
                     >
                       {foldedLines[i] ? (
                         <span>
@@ -1311,17 +1352,18 @@ function VSCodeAgentIDE({
                   ref={textareaRef}
                   value={editorContent}
                   onChange={handleEditorChange}
+                  onScroll={handleEditorScroll}
                   onKeyDown={handleKeyDown}
                   onSelect={handleEditorSelection}
                   onClick={handleEditorSelection}
                   onKeyUp={handleEditorSelection}
                   spellCheck={false}
-                  className="absolute inset-0 w-full h-full bg-transparent text-transparent caret-[#60a5fa] p-3 text-[12.5px] font-mono leading-[1.6] resize-none focus:outline-none custom-scrollbar select-text overflow-y-auto whitespace-pre tab-4 z-10"
+                  className="absolute inset-0 w-full h-full bg-transparent text-transparent caret-[#60a5fa] p-3 text-[12.5px] font-mono leading-[20px] resize-none focus:outline-none custom-scrollbar select-text overflow-y-auto whitespace-pre tab-4 z-10 font-normal"
                 />
               </div>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[#090b0e]">
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[#090b0e] select-none">
               <div className="w-16 h-16 rounded-2xl bg-[#12151c] border border-[#1e232e] flex items-center justify-center p-3 mb-4 shadow-xl">
                 <img src="/aionlabs.svg" alt="Archon" className="w-full h-full object-contain" />
               </div>
@@ -1354,8 +1396,8 @@ function VSCodeAgentIDE({
           {showBottomPanel && (
             <div className="h-[180px] bg-[#07080a] border-t border-[#161922] flex flex-col flex-shrink-0">
               
-              {/* Bottom Tab Bar with + New Terminal */}
-              <div className="flex justify-between items-center px-3 py-1 bg-[#090b0e] border-b border-[#161922] text-[11px] font-mono">
+              {/* Bottom Tab Bar with + New Terminal & Copy Button */}
+              <div className="flex justify-between items-center px-3 py-1 bg-[#090b0e] border-b border-[#161922] text-[11px] font-mono select-none">
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setBottomTab('terminal')}
@@ -1380,7 +1422,7 @@ function VSCodeAgentIDE({
 
                 <div className="flex items-center gap-2">
                   {bottomTab === 'terminal' && (
-                    <div className="flex items-center gap-1 mr-3">
+                    <div className="flex items-center gap-1.5 mr-3">
                       {terminals.map(t => (
                         <div
                           key={t.id}
@@ -1405,10 +1447,18 @@ function VSCodeAgentIDE({
                       <button
                         onClick={handleAddTerminal}
                         title="Add New Terminal"
-                        className="text-[#60a5fa] hover:text-[#93c5fd] bg-[#12151c] hover:bg-[#1e293b] p-1 rounded border border-[#1e232e] cursor-pointer flex items-center gap-1 text-[10px]"
+                        className="text-[#60a5fa] hover:text-[#93c5fd] bg-[#12151c] hover:bg-[#1e293b] px-1.5 py-0.5 rounded border border-[#1e232e] cursor-pointer flex items-center gap-1 text-[10px]"
                       >
                         <Icons.Plus />
                         <span>New</span>
+                      </button>
+                      <button
+                        onClick={handleCopyTerminalBuffer}
+                        title="Copy All Terminal Output"
+                        className="text-[#94a3b8] hover:text-[#cbd5e1] bg-[#12151c] hover:bg-[#1e293b] px-2 py-0.5 rounded border border-[#1e232e] cursor-pointer flex items-center gap-1 text-[10px]"
+                      >
+                        <Icons.Copy />
+                        <span>{terminalCopied ? 'Copied' : 'Copy'}</span>
                       </button>
                     </div>
                   )}
@@ -1422,31 +1472,31 @@ function VSCodeAgentIDE({
                 </div>
               </div>
 
-              {/* Tab 1: Live Interactive Terminal */}
+              {/* Tab 1: Live Interactive Terminal (Full Selectable Text) */}
               {bottomTab === 'terminal' && (
-                <div className="flex-1 flex flex-col p-2.5 overflow-hidden font-mono text-[11.5px] bg-[#07080a]">
+                <div className="flex-1 flex flex-col p-2.5 overflow-hidden font-mono text-[11.5px] bg-[#07080a] select-text">
                   <div
                     ref={termScrollRef}
-                    className="flex-1 overflow-y-auto space-y-1 custom-scrollbar text-[#c9d1d9] pb-1"
+                    className="flex-1 overflow-y-auto space-y-1 custom-scrollbar text-[#c9d1d9] pb-1 select-text"
                   >
                     {currentTerm.history.map((item, i) => (
-                      <div key={i} className="leading-relaxed">
+                      <div key={i} className="leading-relaxed select-text">
                         {item.type === 'input' && (
-                          <div className="text-[#60a5fa] font-bold">{item.text}</div>
+                          <div className="text-[#60a5fa] font-bold select-text">{item.text}</div>
                         )}
                         {item.type === 'stdout' && (
-                          <pre className="text-[#a0a6b5] whitespace-pre-wrap">{item.text}</pre>
+                          <pre className="text-[#a0a6b5] whitespace-pre-wrap select-text font-mono">{item.text}</pre>
                         )}
                         {item.type === 'stderr' && (
-                          <pre className="text-[#f87171] whitespace-pre-wrap">{item.text}</pre>
+                          <pre className="text-[#f87171] whitespace-pre-wrap select-text font-mono">{item.text}</pre>
                         )}
                         {item.type === 'system' && (
-                          <div className="text-[#10b981]">{item.text}</div>
+                          <div className="text-[#10b981] select-text">{item.text}</div>
                         )}
                       </div>
                     ))}
                     {executingCmd && (
-                      <div className="text-[#60a5fa] flex items-center gap-2 animate-pulse">
+                      <div className="text-[#60a5fa] flex items-center gap-2 animate-pulse select-text">
                         <span className="animate-spin">⟳</span> Running command...
                       </div>
                     )}
@@ -1468,7 +1518,7 @@ function VSCodeAgentIDE({
                       }}
                       onKeyDown={handleTerminalKeyDown}
                       placeholder="Type shell command (e.g. ls, git status, cd .., mkdir new-dir)..."
-                      className="flex-1 bg-transparent text-[#e2e5ea] focus:outline-none placeholder-[#475569]"
+                      className="flex-1 bg-transparent text-[#e2e5ea] focus:outline-none placeholder-[#475569] select-text"
                     />
                   </div>
                 </div>
@@ -1476,7 +1526,7 @@ function VSCodeAgentIDE({
 
               {/* Tab 2: System Output Logs */}
               {bottomTab === 'output' && (
-                <div className="flex-1 p-2.5 overflow-y-auto font-mono text-[11.5px] leading-[1.6] custom-scrollbar text-[#94a3b8]">
+                <div className="flex-1 p-2.5 overflow-y-auto font-mono text-[11.5px] leading-[1.6] custom-scrollbar text-[#94a3b8] select-text">
                   <div>
                     <span className="text-[#475569] select-none">[{new Date().toLocaleTimeString()}]</span> Archon Agent IDE workspace initialized.
                   </div>
@@ -1496,8 +1546,9 @@ function VSCodeAgentIDE({
 
               {/* Tab 3: Diagnostics */}
               {bottomTab === 'diagnostics' && (
-                <div className="flex-1 p-2.5 overflow-y-auto font-mono text-[11.5px] leading-[1.6] custom-scrollbar text-[#cbd5e1]">
+                <div className="flex-1 p-2.5 overflow-y-auto font-mono text-[11.5px] leading-[1.6] custom-scrollbar text-[#cbd5e1] select-text">
                   <span>Project Root: {currentProjectPath}</span><br />
+                  <span>Git Branch: {gitBranch}</span><br />
                   <span>Active File: {activeTabPath || 'None'}</span><br />
                   <span>Line Count: {rawLines.length} | Characters: {editorContent.length}</span><br />
                   <span>Unsaved Buffer: {isDirty ? 'Yes' : 'No'}</span>
@@ -1508,7 +1559,7 @@ function VSCodeAgentIDE({
         </div>
 
         {/* ── 4. Archon Agent Chat Panel (Right, 380px) ───────────── */}
-        <div className="w-[380px] bg-[#0c0e12] border-l border-[#161922] flex flex-col flex-shrink-0 overflow-hidden">
+        <div className="w-[380px] bg-[#0c0e12] border-l border-[#161922] flex flex-col flex-shrink-0 overflow-hidden select-none">
           
           <div className="px-3.5 py-2.5 border-b border-[#161922] bg-[#090b0e] flex justify-between items-center">
             <div className="flex items-center gap-2">
@@ -1550,7 +1601,7 @@ function VSCodeAgentIDE({
             )}
           </div>
 
-          <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-3.5 space-y-4 custom-scrollbar">
+          <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-3.5 space-y-4 custom-scrollbar select-text">
             {agentMessages.map((msg, i) => (
               <div
                 key={i}
@@ -1560,7 +1611,7 @@ function VSCodeAgentIDE({
                     : 'bg-[#08090a] border-[#161922] text-[#cbd5e1] mr-1 shadow-sm'
                 }`}
               >
-                <div className="flex items-center gap-1.5 mb-1.5 text-[10.5px] font-mono font-bold">
+                <div className="flex items-center gap-1.5 mb-1.5 text-[10.5px] font-mono font-bold select-none">
                   {msg.role === 'user' ? (
                     <span className="text-[#60a5fa] flex items-center gap-1.5">
                       <Icons.User />
@@ -1589,7 +1640,7 @@ function VSCodeAgentIDE({
           </div>
 
           {activeTab && (
-            <div className="p-2 border-t border-[#161922]/60 bg-[#08090a] flex items-center gap-1.5 overflow-x-auto custom-scrollbar">
+            <div className="p-2 border-t border-[#161922]/60 bg-[#08090a] flex items-center gap-1.5 overflow-x-auto custom-scrollbar select-none">
               <button
                 onClick={() => handleSendAgentMessage(`Explain what ${activeTab.path} does and summarize its core logic.`)}
                 className="whitespace-nowrap px-2 py-1 rounded text-[10.5px] font-mono bg-[#12151c] hover:bg-[#1a1e26] text-[#8b949e] hover:text-[#60a5fa] border border-[#1a1e26] transition-colors cursor-pointer flex items-center gap-1"
@@ -1627,9 +1678,9 @@ function VSCodeAgentIDE({
                 }}
                 placeholder="Ask Archon Agent (Enter to send, Shift+Enter for newline)..."
                 rows={2}
-                className="w-full bg-transparent text-[#cbd5e1] p-2.5 text-[12px] font-mono focus:outline-none resize-none custom-scrollbar placeholder-[#475569]"
+                className="w-full bg-transparent text-[#cbd5e1] p-2.5 text-[12px] font-mono focus:outline-none resize-none custom-scrollbar placeholder-[#475569] select-text"
               />
-              <div className="flex justify-between items-center px-2.5 pb-2">
+              <div className="flex justify-between items-center px-2.5 pb-2 select-none">
                 <select
                   value={selectedModel}
                   onChange={(e) => setSelectedModel(e.target.value)}
@@ -1658,10 +1709,10 @@ function VSCodeAgentIDE({
       </div>
 
       {/* ── 5. Status Bar (Bottom, 24px) ──────────────────────────── */}
-      <div className="h-[24px] bg-[#060708] border-t border-[#161922] px-3 flex justify-between items-center text-[11px] font-mono text-[#64748b] flex-shrink-0">
+      <div className="h-[24px] bg-[#060708] border-t border-[#161922] px-3 flex justify-between items-center text-[11px] font-mono text-[#64748b] flex-shrink-0 select-none">
         <div className="flex items-center gap-4">
           <span className="text-[#60a5fa] flex items-center gap-1 font-medium">
-            ⎇ main ({currentProjectName})
+            ⎇ {gitBranch} ({currentProjectName})
           </span>
           {activeTab && (
             <span>
@@ -1945,7 +1996,7 @@ export default function Home() {
     <div className="min-h-screen bg-[#08090a] text-[#c8ccd0] font-sans antialiased selection:bg-[#2563eb]/30 selection:text-white">
       
       {/* ── Top Universal Header & Mode Switcher ──────────────────── */}
-      <header className="border-b border-[#161922] bg-[#07080a]/95 backdrop-blur-md sticky top-0 z-50">
+      <header className="border-b border-[#161922] bg-[#07080a]/95 backdrop-blur-md sticky top-0 z-50 select-none">
         <div className="max-w-[1400px] mx-auto px-6 h-[56px] flex items-center justify-between">
           
           <div className="flex items-center gap-3">

@@ -234,6 +234,8 @@ class TerminalExecRequest(BaseModel):
     cwd: Optional[str] = None
     terminal_id: Optional[str] = "term-1"
 
+import subprocess
+
 def normalize_workspace_path(p_str: str) -> Path:
     cleaned = p_str.strip().replace("\\", "/")
     if len(cleaned) >= 2 and cleaned[1] == ":":
@@ -243,13 +245,32 @@ def normalize_workspace_path(p_str: str) -> Path:
             return Path(f"/mnt/{drive}/{rest}").resolve()
     return Path(cleaned).resolve()
 
+def get_active_git_branch(directory: Path) -> str:
+    """Returns the live git branch of the directory or 'no git' if not a repo."""
+    try:
+        res = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=str(directory),
+            capture_output=True,
+            text=True,
+            timeout=2.0
+        )
+        if res.returncode == 0:
+            branch = res.stdout.strip()
+            if branch:
+                return branch
+    except Exception:
+        pass
+    return "main"
+
 @app.get("/api/workspace/projects")
 def get_workspace_projects():
-    """Returns current active project and recent projects list."""
+    """Returns current active project, recent projects list, and live git branch."""
     global ACTIVE_WORKSPACE_ROOT, RECENT_PROJECTS
     return {
         "current_project": ACTIVE_WORKSPACE_ROOT.name,
         "project_path": str(ACTIVE_WORKSPACE_ROOT).replace("\\", "/"),
+        "git_branch": get_active_git_branch(ACTIVE_WORKSPACE_ROOT),
         "recent_projects": list(dict.fromkeys(RECENT_PROJECTS))[:10]
     }
 
@@ -279,6 +300,7 @@ def open_workspace_project(req: OpenProjectRequest):
         "status": "success",
         "current_project": target_path.name,
         "project_path": normalized_path,
+        "git_branch": get_active_git_branch(target_path),
         "recent_projects": list(dict.fromkeys(RECENT_PROJECTS))[:10]
     }
 
@@ -313,7 +335,8 @@ async def terminal_exec(req: TerminalExecRequest):
                 "stderr": "",
                 "exit_code": 0,
                 "cwd": new_cwd,
-                "project_name": new_dir.name
+                "project_name": new_dir.name,
+                "git_branch": get_active_git_branch(new_dir)
             }
         else:
             return {
