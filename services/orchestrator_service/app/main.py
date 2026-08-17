@@ -306,14 +306,43 @@ def create_workspace_item(req: CreateFileRequest):
 
 @app.post("/api/agent/chat")
 async def agent_chat(req: AgentChatRequest):
-    """Multi-turn Copilot Agent endpoint with active file context and full chat history."""
+    """Multi-turn Copilot Agent endpoint with Hybrid RAG retrieval, active file context, and conversational guardrails."""
+    # Find latest user message
+    latest_user_msg = next((m.content for m in reversed(req.messages) if m.role == "user"), "").strip()
+    is_greeting = latest_user_msg.lower() in ["hi", "hello", "hey", "sup", "greetings", "good morning", "good evening", "how are you", "who are you"]
+
+    # Hybrid RAG Context Retrieval (Dual-stream BM25 + Dense + Cross-Encoder)
+    rag_context = ""
+    if latest_user_msg and not is_greeting and len(latest_user_msg) > 3:
+        try:
+            async with httpx.AsyncClient(timeout=6.0) as client:
+                search_resp = await client.post(
+                    f"{RAG_SERVICE_URL}/api/search",
+                    json={"query": latest_user_msg, "top_k": 3}
+                )
+                if search_resp.status_code == 200:
+                    search_data = search_resp.json()
+                    cross_results = search_data.get("cross_encoder", [])
+                    valid_chunks = [c["text"] for c in cross_results if "text" in c and c.get("score") != "N/A"]
+                    if valid_chunks:
+                        rag_context = "\n\n---\n\n".join(valid_chunks[:3])
+        except Exception as e:
+            print(f"Warning: Agent RAG retrieval failed: {e}")
+
     system_prompt = """You are Copilot Agent, an elite AI pair programmer and software architect embedded directly into the developer's IDE.
 You write clean, modular, production-ready code with rigorous adherence to best practices.
-When asked to write, inspect, or refactor code:
-1. Provide concise, high-signal explanations.
-2. Output code blocks with precise language tags (e.g. ```python, ```typescript, ```json, ```yaml, ```bash, ```css, ```html).
-3. When refactoring or adding features to the active file, provide clean, drop-in replacement snippets.
+
+### CONVERSATIONAL RULES:
+1. If the user is greeting you (e.g. 'hi', 'hello', 'hey'), respond concisely and warmly asking what task or code they want to work on. DO NOT generate code or analyze the active file for simple greetings.
+2. When the user asks a question, requests a feature, or asks for code refactoring/debugging:
+   - Provide concise, high-signal explanations.
+   - Output code blocks with precise language tags (e.g. ```python, ```typescript, ```json, ```yaml, ```bash, ```css, ```html).
+   - Use the retrieved API Documentation Context and Active Editor File context below to provide 100% accurate, production-ready code.
 """
+
+    if rag_context:
+        system_prompt += f"\n\n### Retrieved Enterprise API Documentation (via Hybrid RAG):\n```\n{rag_context}\n```\n"
+
     if req.active_file_path:
         file_preview = (req.active_file_content[:15000] + "\n...[truncated]") if req.active_file_content and len(req.active_file_content) > 15000 else (req.active_file_content or "")
         system_prompt += f"\n\n### Current Active Editor File: `{req.active_file_path}`\n```\n{file_preview}\n```\n"

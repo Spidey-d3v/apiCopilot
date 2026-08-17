@@ -3,7 +3,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-/* ── Strategy Info Definitions ─────────────────────────────── */
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+
+/* -- Strategy Info Definitions ------------------------------- */
 const PIPELINE_STAGES = [
   { 
     id: 0, 
@@ -52,7 +54,7 @@ const PIPELINE_STAGES = [
   },
 ];
 
-/* ── File Icon Helper ───────────────────────────────────────── */
+/* -- File Icon Helper ----------------------------------------- */
 function getFileIcon(filename: string, isDirectory: boolean = false, isOpen: boolean = false) {
   if (isDirectory) {
     return (
@@ -91,7 +93,7 @@ function getFileIcon(filename: string, isDirectory: boolean = false, isOpen: boo
   }
 }
 
-/* ── Code Block with Copy & Apply Actions ──────────────────── */
+/* -- Code Block with Copy & Apply Actions -------------------- */
 function CodeBlock({ 
   children, 
   className,
@@ -151,13 +153,19 @@ function CodeBlock({
   );
 }
 
-/* ── Rich Markdown Renderer ────────────────────────────────── */
+/* -- Rich Markdown Renderer ---------------------------------- */
 function FormattedMarkdown({ content, onApplyCode }: { content: string; onApplyCode?: (code: string) => void }) {
   return (
-    <div className="markdown-body space-y-2.5 font-sans leading-relaxed text-[#a0a6b5] text-[13px]">
+    <div className="markdown-body space-y-2 font-sans leading-relaxed text-[#a0a6b5] text-[13px]">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
+          pre: ({ children }) => <>{children}</>,
+          p: ({ children }) => (
+            <div className="leading-[1.75] my-1.5 text-[#9da5b4]">
+              {children}
+            </div>
+          ),
           h1: ({ children }) => (
             <h1 className="text-[18px] font-semibold text-[#e2e5ea] border-b border-[#1a1e26] pb-1.5 mt-4 mb-2 tracking-tight">
               {children}
@@ -173,18 +181,14 @@ function FormattedMarkdown({ content, onApplyCode }: { content: string; onApplyC
               {children}
             </h3>
           ),
-          p: ({ children }) => (
-            <p className="leading-[1.75] my-1.5 text-[#9da5b4]">
-              {children}
-            </p>
-          ),
           strong: ({ children }) => (
             <strong className="text-[#e2e5ea] font-semibold">
               {children}
             </strong>
           ),
           code: ({ node, inline, className, children, ...props }: any) => {
-            if (!inline) {
+            const hasLang = /language-(\w+)/.test(className || '');
+            if (!inline && hasLang) {
               return (
                 <CodeBlock className={className} onApplyCode={onApplyCode}>
                   {children}
@@ -225,7 +229,7 @@ function FormattedMarkdown({ content, onApplyCode }: { content: string; onApplyC
   );
 }
 
-/* ── Interactive RAG Pipeline Visualization ────────────────── */
+/* -- Interactive RAG Pipeline Visualization ------------------ */
 function RagPipeline({ 
   currentStage, 
   onNavigateStage 
@@ -306,7 +310,7 @@ function RagPipeline({
   );
 }
 
-/* ── Tree Node Component for File Explorer ─────────────────── */
+/* -- Tree Node Component for File Explorer ------------------- */
 interface TreeNode {
   name: string;
   path: string;
@@ -375,7 +379,7 @@ function FileTreeNode({
   );
 }
 
-/* ── VS Code Style Copilot Agent IDE Workspace ────────────── */
+/* -- VS Code Style Copilot Agent IDE Workspace -------------- */
 function VSCodeAgentIDE({
   apiBase,
   models,
@@ -667,11 +671,11 @@ function VSCodeAgentIDE({
   const activeTab = openTabs.find(t => t.path === activeTabPath);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-68px)] bg-[#08090a] text-[#c9d1d9] overflow-hidden select-none border border-[#161922] rounded-xl shadow-2xl">
+    <div className="flex flex-col h-full w-full bg-[#08090a] text-[#c9d1d9] overflow-hidden select-none border-0">
       {/* Main Workspace Row */}
       <div className="flex flex-1 overflow-hidden">
         
-        {/* ── 1. Activity Bar (Left, 46px) ────────────────────────── */}
+        {/* -- 1. Activity Bar (Left, 46px) -------------------------- */}
         <div className="w-[46px] bg-[#060708] border-r border-[#161922] flex flex-col items-center py-3 justify-between z-10 flex-shrink-0">
           <div className="flex flex-col items-center gap-4">
             <button
@@ -725,7 +729,7 @@ function VSCodeAgentIDE({
           </div>
         </div>
 
-        {/* ── 2. Sidebar (Explorer / Search, 250px) ────────────────── */}
+        {/* -- 2. Sidebar (Explorer / Search, 250px) ------------------ */}
         <div className="w-[250px] bg-[#0c0e12] border-r border-[#161922] flex flex-col flex-shrink-0 overflow-hidden">
           <div className="px-3 py-2.5 border-b border-[#161922] flex justify-between items-center bg-[#090b0e]">
             <span className="text-[11px] font-mono font-bold tracking-wider text-[#94a3b8] uppercase">
@@ -774,7 +778,7 @@ function VSCodeAgentIDE({
           </div>
         </div>
 
-        {/* ── 3. Central Code Editor Panel (Flex-1) ────────────────── */}
+        {/* -- 3. Central Code Editor Panel (Flex-1) ------------------ */}
         <div className="flex-1 flex flex-col bg-[#090b0e] overflow-hidden">
           
           {/* Tab Bar */}
@@ -902,7 +906,7 @@ function VSCodeAgentIDE({
             </div>
           )}
 
-          {/* ── Collapsible Bottom Panel (Terminal / Logs) ─────────── */}
+          {/* -- Collapsible Bottom Panel (Terminal / Logs) ----------- */}
           {showBottomPanel && (
             <div className="h-[140px] bg-[#07080a] border-t border-[#161922] flex flex-col flex-shrink-0">
               <div className="flex justify-between items-center px-3 py-1 bg-[#090b0e] border-b border-[#161922] text-[11px] font-mono">
@@ -966,7 +970,7 @@ function VSCodeAgentIDE({
           )}
         </div>
 
-        {/* ── 4. Copilot Agent Chat Panel (Right, 380px) ──────────── */}
+        {/* -- 4. Copilot Agent Chat Panel (Right, 380px) ------------ */}
         <div className="w-[380px] bg-[#0c0e12] border-l border-[#161922] flex flex-col flex-shrink-0 overflow-hidden">
           
           {/* Agent Header */}
@@ -1110,7 +1114,7 @@ function VSCodeAgentIDE({
         </div>
       </div>
 
-      {/* ── 5. Status Bar (Bottom, 24px) ──────────────────────────── */}
+      {/* -- 5. Status Bar (Bottom, 24px) ---------------------------- */}
       <div className="h-[24px] bg-[#060708] border-t border-[#161922] px-3 flex justify-between items-center text-[11px] font-mono text-[#64748b] flex-shrink-0">
         <div className="flex items-center gap-4">
           <span className="text-[#60a5fa] flex items-center gap-1 font-medium">
@@ -1141,7 +1145,7 @@ function VSCodeAgentIDE({
   );
 }
 
-/* ── Main Application Component ────────────────────────────── */
+/* -- Main Application Component ------------------------------ */
 export default function Home() {
   // Top-level Mode Switcher: 'api_copilot' | 'copilot_agent'
   const [appMode, setAppMode] = useState<'api_copilot' | 'copilot_agent'>('api_copilot');
@@ -1167,8 +1171,6 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const outputRef = useRef<HTMLDivElement>(null);
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-
   useEffect(() => {
     fetch(`${API_BASE}/api/models`)
       .then(res => res.json())
@@ -1182,7 +1184,7 @@ export default function Home() {
       .then(res => res.json())
       .then(data => setDbData(data))
       .catch(err => console.error("Could not load DB data"));
-  }, [API_BASE]);
+  }, []);
 
   // Auto-scroll output when tokens stream in
   useEffect(() => {
@@ -1311,7 +1313,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#08090a] text-[#c8ccd0] font-sans antialiased selection:bg-[#2563eb]/30 selection:text-white">
       
-      {/* ── Top App Header & Mode Switcher ────────────────────────── */}
+      {/* -- Top App Header & Mode Switcher -------------------------- */}
       <header className="border-b border-[#161922] bg-[#07080a]/90 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-[1600px] mx-auto px-6 h-[58px] flex items-center justify-between">
           
@@ -1335,7 +1337,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* ── Center: Mode Switcher (API Copilot vs Copilot Agent IDE) ── */}
+          {/* -- Center: Mode Switcher (API Copilot vs Copilot Agent IDE) -- */}
           <div className="flex items-center p-1 bg-[#0c0e12] border border-[#1a1e26] rounded-xl shadow-inner">
             <button
               onClick={() => setAppMode('api_copilot')}
@@ -1386,21 +1388,18 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ── VIEWPORT CONTENT SWITCHER ─────────────────────────────── */}
-      <main className="max-w-[1600px] mx-auto p-5">
-        
-        {/* MODE A: VS Code-Style Copilot Agent IDE Mode */}
-        {appMode === 'copilot_agent' && (
+      {/* -- VIEWPORT CONTENT SWITCHER ------------------------------- */}
+      {appMode === 'copilot_agent' ? (
+        <main className="w-full h-[calc(100vh-58px)] overflow-hidden">
           <VSCodeAgentIDE
             apiBase={API_BASE}
             models={models}
             selectedModel={selectedModel}
             setSelectedModel={setSelectedModel}
           />
-        )}
-
-        {/* MODE B: Enterprise API Copilot RAG Explorer Mode */}
-        {appMode === 'api_copilot' && (
+        </main>
+      ) : (
+        <main className="max-w-[1600px] mx-auto p-5">
           <div className="space-y-5 animate-fade-in">
             {/* Interactive RAG Pipeline Visualization */}
             <RagPipeline 
@@ -1685,10 +1684,10 @@ export default function Home() {
               </div>
             </div>
           </div>
-        )}
-      </main>
+        </main>
+      )}
 
-      {/* ── Document Upload Modal ─────────────────────────────────── */}
+      {/* -- Document Upload Modal ----------------------------------- */}
       {showModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#0c0e12] border border-[#1a1e26] rounded-xl max-w-[650px] w-full p-6 shadow-2xl space-y-4">
