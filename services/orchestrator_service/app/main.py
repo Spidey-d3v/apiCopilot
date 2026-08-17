@@ -11,9 +11,9 @@ import os
 from .config import RAG_SERVICE_URL, INGESTION_SERVICE_URL, OLLAMA_URL, DEFAULT_MODEL
 
 app = FastAPI(
-    title="Enterprise API Copilot Orchestrator Gateway",
+    title="Archon Copilot Orchestrator Gateway",
     version="1.0.0",
-    description="Smart multi-model routing, prompt synthesis, workspace explorer, and IDE Copilot Agent"
+    description="Smart multi-model routing, prompt synthesis, workspace explorer, and IDE Archon Copilot Agent"
 )
 
 app.add_middleware(
@@ -383,7 +383,7 @@ async def agent_chat(req: AgentChatRequest):
         except Exception as e:
             print(f"Warning: Agent RAG retrieval failed: {e}")
 
-    system_prompt = """You are Copilot Agent, an elite AI pair programmer and software architect embedded directly into the developer's IDE.
+    system_prompt = """You are Archon Agent, an elite AI pair programmer and software architect embedded directly into the developer's IDE.
 You write clean, modular, production-ready code with rigorous adherence to best practices.
 
 ### CONVERSATIONAL RULES:

@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Enterprise API Copilot & Agent IDE",
-  description: "Enterprise multi-service RAG retrieval engine and AI pair programmer workspace.",
+  title: "Archon — Enterprise API Copilot & Agent IDE",
+  description: "Archon enterprise multi-service RAG retrieval engine and AI pair programmer workspace.",
   icons: {
     icon: "/aionlabs.svg",
     shortcut: "/aionlabs.svg",

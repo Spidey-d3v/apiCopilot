@@ -5,6 +5,99 @@ import remarkGfm from 'remark-gfm';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
+/* ── Professional Sleek SVG Icon Library ───────────────────── */
+const Icons = {
+  Explorer: () => (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 7v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-7l-2-2H5a2 2 0 0 0-2 2z" />
+    </svg>
+  ),
+  Search: () => (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  ),
+  ArchonAI: () => (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+    </svg>
+  ),
+  Diagnostics: () => (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+    </svg>
+  ),
+  FolderOpen: () => (
+    <svg className="w-3.5 h-3.5 text-[#e2b86b] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+    </svg>
+  ),
+  FolderClosed: () => (
+    <svg className="w-3.5 h-3.5 text-[#e2b86b] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
+    </svg>
+  ),
+  FileCode: () => (
+    <svg className="w-3.5 h-3.5 text-[#9ca3af] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+      <polyline points="14 2 14 8 20 8" />
+    </svg>
+  ),
+  FolderPlus: () => (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+      <line x1="12" y1="11" x2="12" y2="17" />
+      <line x1="9" y1="14" x2="15" y2="14" />
+    </svg>
+  ),
+  Refresh: () => (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+    </svg>
+  ),
+  Save: () => (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+      <polyline points="17 21 17 13 7 13 7 21" />
+      <polyline points="7 3 7 8 15 8" />
+    </svg>
+  ),
+  Trash: () => (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </svg>
+  ),
+  Bolt: () => (
+    <svg className="w-3.5 h-3.5 text-[#60a5fa]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  ),
+  Close: () => (
+    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  ),
+  User: () => (
+    <svg className="w-3.5 h-3.5 text-[#60a5fa]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  ),
+  ChevronRight: () => (
+    <svg className="w-3 h-3 text-[#64748b]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  ),
+  ChevronDown: () => (
+    <svg className="w-3 h-3 text-[#64748b]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  )
+};
+
 /* -- Strategy Info Definitions ------------------------------- */
 const PIPELINE_STAGES = [
   { 
@@ -54,42 +147,38 @@ const PIPELINE_STAGES = [
   },
 ];
 
-/* -- File Icon Helper ----------------------------------------- */
+/* -- File Icon Helper with Clean Badges & SVGs --------------- */
 function getFileIcon(filename: string, isDirectory: boolean = false, isOpen: boolean = false) {
   if (isDirectory) {
-    return (
-      <span className="text-[#e2b86b] text-[13px] font-mono select-none">
-        {isOpen ? '📂' : '📁'}
-      </span>
-    );
+    return isOpen ? <Icons.FolderOpen /> : <Icons.FolderClosed />;
   }
   const ext = filename.split('.').pop()?.toLowerCase() || '';
   if (filename === 'Dockerfile' || filename.startsWith('docker-compose')) {
-    return <span className="text-[#38bdf8] text-[11px] font-bold font-mono">🐳</span>;
+    return <span className="text-[#38bdf8] text-[9.5px] font-bold font-mono px-1 py-0.2 bg-[#0284c7]/15 rounded border border-[#0284c7]/30">DOCKER</span>;
   }
   switch (ext) {
     case 'ts':
     case 'tsx':
-      return <span className="text-[#38bdf8] text-[10px] font-bold font-mono px-1 py-0.2 bg-[#0284c7]/15 rounded border border-[#0284c7]/30">TS</span>;
+      return <span className="text-[#38bdf8] text-[9.5px] font-bold font-mono px-1 py-0.2 bg-[#0284c7]/15 rounded border border-[#0284c7]/30">TS</span>;
     case 'js':
     case 'jsx':
     case 'mjs':
-      return <span className="text-[#facc15] text-[10px] font-bold font-mono px-1 py-0.2 bg-[#eab308]/15 rounded border border-[#eab308]/30">JS</span>;
+      return <span className="text-[#facc15] text-[9.5px] font-bold font-mono px-1 py-0.2 bg-[#eab308]/15 rounded border border-[#eab308]/30">JS</span>;
     case 'py':
-      return <span className="text-[#60a5fa] text-[10px] font-bold font-mono px-1 py-0.2 bg-[#2563eb]/15 rounded border border-[#2563eb]/30">PY</span>;
+      return <span className="text-[#60a5fa] text-[9.5px] font-bold font-mono px-1 py-0.2 bg-[#2563eb]/15 rounded border border-[#2563eb]/30">PY</span>;
     case 'json':
-      return <span className="text-[#fbbf24] text-[11px] font-bold font-mono">{"{}"}</span>;
+      return <span className="text-[#fbbf24] text-[9.5px] font-bold font-mono px-1 py-0.2 bg-[#f59e0b]/15 rounded border border-[#f59e0b]/30">JSON</span>;
     case 'yaml':
     case 'yml':
-      return <span className="text-[#f87171] text-[10px] font-bold font-mono px-0.5 bg-[#dc2626]/15 rounded">YML</span>;
+      return <span className="text-[#f87171] text-[9.5px] font-bold font-mono px-1 py-0.2 bg-[#dc2626]/15 rounded border border-[#dc2626]/30">YML</span>;
     case 'md':
-      return <span className="text-[#c084fc] text-[10px] font-bold font-mono px-0.5 bg-[#9333ea]/15 rounded">MD</span>;
+      return <span className="text-[#c084fc] text-[9.5px] font-bold font-mono px-1 py-0.2 bg-[#9333ea]/15 rounded border border-[#9333ea]/30">MD</span>;
     case 'css':
-      return <span className="text-[#38bdf8] text-[11px] font-bold font-mono">#</span>;
+      return <span className="text-[#38bdf8] text-[9.5px] font-bold font-mono px-1 py-0.2 bg-[#06b6d4]/15 rounded border border-[#06b6d4]/30">CSS</span>;
     case 'sh':
-      return <span className="text-[#4ade80] text-[11px] font-bold font-mono">$</span>;
+      return <span className="text-[#4ade80] text-[9.5px] font-bold font-mono px-1 py-0.2 bg-[#16a34a]/15 rounded border border-[#16a34a]/30">SH</span>;
     default:
-      return <span className="text-[#9ca3af] text-[11px] font-mono">📄</span>;
+      return <Icons.FileCode />;
   }
 }
 
@@ -355,11 +444,11 @@ function FileTreeNode({
             : 'text-[#9ca3af] hover:bg-[#12151c] hover:text-[#e2e5ea]'
         }`}
       >
-        <span className="text-[#64748b] text-[10px] w-3.5 flex justify-center">
-          {isDir ? (expanded ? '▾' : '▸') : ''}
+        <span className="w-3.5 flex items-center justify-center">
+          {isDir ? (expanded ? <Icons.ChevronDown /> : <Icons.ChevronRight />) : null}
         </span>
         {getFileIcon(node.name, isDir, expanded)}
-        <span className="truncate flex-1">{node.name}</span>
+        <span className="truncate flex-1 ml-0.5">{node.name}</span>
       </div>
 
       {isDir && expanded && node.children && (
@@ -379,7 +468,7 @@ function FileTreeNode({
   );
 }
 
-/* -- VS Code Style Copilot Agent IDE Workspace --------------- */
+/* -- VS Code Style Archon Agent IDE Workspace ---------------- */
 function VSCodeAgentIDE({
   apiBase,
   models,
@@ -414,16 +503,16 @@ function VSCodeAgentIDE({
   const [showBottomPanel, setShowBottomPanel] = useState<boolean>(true);
   const [bottomTab, setBottomTab] = useState<'output' | 'terminal' | 'diagnostics'>('output');
   const [terminalLogs, setTerminalLogs] = useState<string[]>([
-    "[System] Copilot Agent IDE workspace initialized.",
+    "[System] Archon Agent IDE workspace initialized.",
     "[System] Microservices Mesh connected on " + apiBase,
     "[GPU] Model loaded: " + selectedModel
   ]);
 
-  // Copilot Agent Multi-Turn Chat State
+  // Archon Agent Multi-Turn Chat State
   const [agentMessages, setAgentMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([
     {
       role: 'assistant',
-      content: "👋 **Hello! I am your Copilot Agent.**\n\nI have full context of your workspace, active editor files, and integrated Hybrid RAG API documentation. Click any file on the left to inspect and code, or ask me any programming question."
+      content: "👋 **Hello! I am Archon Agent.**\n\nI have full context of your workspace, active editor files, and integrated Hybrid RAG API documentation. Click any file on the left to inspect and code, or ask me any programming question."
     }
   ]);
   const [agentInput, setAgentInput] = useState('');
@@ -626,10 +715,10 @@ function VSCodeAgentIDE({
       setIsDirty(snippet !== active.original);
       setOpenTabs(prev => prev.map(t => t.path === activeTabPath ? { ...t, content: snippet } : t));
     }
-    setTerminalLogs(prev => [...prev, `[Copilot Apply] Applied AI code block to ${activeTabPath || 'active editor'}`]);
+    setTerminalLogs(prev => [...prev, `[Archon Apply] Applied AI code block to ${activeTabPath || 'active editor'}`]);
   };
 
-  // Send Copilot Agent Message (Multi-turn SSE Stream with Hybrid RAG)
+  // Send Archon Agent Message (Multi-turn SSE Stream with Hybrid RAG)
   const handleSendAgentMessage = async (customPrompt?: string) => {
     const textToSend = customPrompt || agentInput;
     if (!textToSend.trim() || agentLoading) return;
@@ -725,53 +814,53 @@ function VSCodeAgentIDE({
         
         {/* ── 1. Activity Bar (Left, 46px) ────────────────────────── */}
         <div className="w-[46px] bg-[#060708] border-r border-[#161922] flex flex-col items-center py-2.5 justify-between z-10 flex-shrink-0">
-          <div className="flex flex-col items-center gap-3.5">
-            <div className="w-8 h-8 rounded-lg bg-[#12151c] border border-[#1e232e] flex items-center justify-center p-1 shadow-sm" title="AionLabs Workspace">
-              <img src="/aionlabs.svg" alt="AionLabs" className="w-full h-full object-contain" />
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-[#12151c] border border-[#1e232e] flex items-center justify-center p-1 shadow-sm" title="Archon Workspace">
+              <img src="/aionlabs.svg" alt="Archon" className="w-full h-full object-contain" />
             </div>
             <button
               onClick={() => setActiveActivity('explorer')}
               title="File Explorer (Ctrl+Shift+E)"
-              className={`w-8 h-8 rounded-lg flex items-center justify-center text-[15px] transition-all cursor-pointer ${
+              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
                 activeActivity === 'explorer'
                   ? 'bg-[#12151c] text-[#60a5fa] border border-[#3b82f6]/30 shadow-[0_0_12px_rgba(59,130,246,0.15)]'
                   : 'text-[#64748b] hover:text-[#cbd5e1] hover:bg-[#0e1015]'
               }`}
             >
-              📁
+              <Icons.Explorer />
             </button>
             <button
               onClick={() => setActiveActivity('search')}
               title="Search Workspace (Ctrl+Shift+F)"
-              className={`w-9 h-9 rounded-lg flex items-center justify-center text-[15px] transition-all cursor-pointer ${
+              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
                 activeActivity === 'search'
                   ? 'bg-[#12151c] text-[#60a5fa] border border-[#3b82f6]/30'
                   : 'text-[#64748b] hover:text-[#cbd5e1] hover:bg-[#0e1015]'
               }`}
             >
-              🔍
+              <Icons.Search />
             </button>
             <button
               onClick={() => setActiveActivity('copilot')}
-              title="Copilot Agent Chat"
-              className={`w-9 h-9 rounded-lg flex items-center justify-center text-[16px] transition-all cursor-pointer ${
+              title="Archon Agent Chat"
+              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
                 activeActivity === 'copilot'
                   ? 'bg-[#12151c] text-[#60a5fa] border border-[#3b82f6]/30'
                   : 'text-[#64748b] hover:text-[#cbd5e1] hover:bg-[#0e1015]'
               }`}
             >
-              🤖
+              <Icons.ArchonAI />
             </button>
             <button
               onClick={() => setActiveActivity('diagnostics')}
               title="Mesh Health & Diagnostics"
-              className={`w-9 h-9 rounded-lg flex items-center justify-center text-[15px] transition-all cursor-pointer ${
+              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
                 activeActivity === 'diagnostics'
                   ? 'bg-[#12151c] text-[#60a5fa] border border-[#3b82f6]/30'
                   : 'text-[#64748b] hover:text-[#cbd5e1] hover:bg-[#0e1015]'
               }`}
             >
-              ⚡
+              <Icons.Diagnostics />
             </button>
           </div>
 
@@ -799,15 +888,15 @@ function VSCodeAgentIDE({
                 title="Open Any Folder / Project..."
                 className="text-[#60a5fa] hover:text-[#93c5fd] text-[11px] font-mono px-2 py-0.5 rounded bg-[#12151c] hover:bg-[#1a1e26] border border-[#1e232e] cursor-pointer flex items-center gap-1"
               >
-                <span>📂</span>
+                <Icons.FolderPlus />
                 <span>Open</span>
               </button>
               <button
                 onClick={fetchProjectsAndTree}
                 title="Refresh Workspace"
-                className="text-[#64748b] hover:text-[#cbd5e1] text-[12px] p-1 rounded hover:bg-[#161922] cursor-pointer"
+                className="text-[#64748b] hover:text-[#cbd5e1] p-1 rounded hover:bg-[#161922] cursor-pointer"
               >
-                🔄
+                <Icons.Refresh />
               </button>
             </div>
           </div>
@@ -827,7 +916,7 @@ function VSCodeAgentIDE({
           <div className="flex-1 overflow-y-auto p-1.5 custom-scrollbar">
             {loadingTree ? (
               <div className="p-4 text-[11px] font-mono text-[#64748b] flex items-center gap-2">
-                <span className="animate-spin">⌛</span> Loading workspace...
+                <span className="animate-spin">⟳</span> Loading workspace...
               </div>
             ) : workspaceTree.length > 0 ? (
               workspaceTree.map(node => (
@@ -873,9 +962,9 @@ function VSCodeAgentIDE({
                   {dirty && <span className="w-2 h-2 rounded-full bg-[#3b82f6] ml-1" title="Unsaved changes" />}
                   <button
                     onClick={(e) => handleCloseTab(tab.path, e)}
-                    className="opacity-0 group-hover:opacity-100 hover:text-[#ef4444] text-[11px] p-0.5 rounded transition-opacity ml-1"
+                    className="opacity-0 group-hover:opacity-100 hover:text-[#ef4444] p-0.5 rounded transition-opacity ml-1"
                   >
-                    ✕
+                    <Icons.Close />
                   </button>
                 </div>
               );
@@ -913,9 +1002,10 @@ function VSCodeAgentIDE({
                 <button
                   onClick={handleSaveFile}
                   title="Save (Ctrl+S)"
-                  className="bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1] px-2.5 py-0.5 rounded text-[11px] font-mono transition-colors border border-[#334155] cursor-pointer flex items-center gap-1"
+                  className="bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1] px-2.5 py-1 rounded text-[11px] font-mono transition-colors border border-[#334155] cursor-pointer flex items-center gap-1.5"
                 >
-                  💾 Save
+                  <Icons.Save />
+                  <span>Save</span>
                 </button>
               </div>
             </div>
@@ -947,7 +1037,7 @@ function VSCodeAgentIDE({
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[#090b0e]">
               <div className="w-16 h-16 rounded-2xl bg-[#12151c] border border-[#1e232e] flex items-center justify-center p-3 mb-4 shadow-xl">
-                <img src="/aionlabs.svg" alt="AionLabs" className="w-full h-full object-contain" />
+                <img src="/aionlabs.svg" alt="Archon" className="w-full h-full object-contain" />
               </div>
               <h3 className="text-[16px] font-semibold text-[#e2e5ea] mb-1">
                 {currentProjectName} Workspace
@@ -958,16 +1048,17 @@ function VSCodeAgentIDE({
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setShowOpenProjectModal(true)}
-                  className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-lg text-[12px] font-mono transition-all cursor-pointer font-medium flex items-center gap-1.5"
+                  className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-lg text-[12px] font-mono transition-all cursor-pointer font-medium flex items-center gap-2"
                 >
-                  <span>📂</span>
+                  <Icons.FolderPlus />
                   <span>Open Any Folder...</span>
                 </button>
                 <button
                   onClick={() => handleOpenFile('README.md')}
-                  className="bg-[#12151c] hover:bg-[#1a1e26] text-[#cbd5e1] border border-[#1e232e] px-4 py-2 rounded-lg text-[12px] font-mono transition-all cursor-pointer"
+                  className="bg-[#12151c] hover:bg-[#1a1e26] text-[#cbd5e1] border border-[#1e232e] px-4 py-2 rounded-lg text-[12px] font-mono transition-all cursor-pointer flex items-center gap-2"
                 >
-                  📄 Open README.md
+                  <Icons.FileCode />
+                  <span>Open README.md</span>
                 </button>
               </div>
             </div>
@@ -1001,7 +1092,7 @@ function VSCodeAgentIDE({
                   onClick={() => setShowBottomPanel(false)}
                   className="text-[#64748b] hover:text-[#cbd5e1] cursor-pointer"
                 >
-                  ✕
+                  <Icons.Close />
                 </button>
               </div>
 
@@ -1017,7 +1108,7 @@ function VSCodeAgentIDE({
                 )}
                 {bottomTab === 'terminal' && (
                   <div className="text-[#38bdf8]">
-                    <span>$ Enterprise Copilot Agent v1.0.0 --active-project={currentProjectName}</span><br />
+                    <span>$ Archon Agent v1.0.0 --active-project={currentProjectName}</span><br />
                     <span className="text-[#10b981]">✓ Ingestion Service (8002): Online</span><br />
                     <span className="text-[#10b981]">✓ RAG Hybrid Engine (8001): Online (20 indexed chunks)</span><br />
                     <span className="text-[#10b981]">✓ Orchestrator Gateway (8000): Ready</span><br />
@@ -1037,16 +1128,16 @@ function VSCodeAgentIDE({
           )}
         </div>
 
-        {/* ── 4. Copilot Agent Chat Panel (Right, 380px) ──────────── */}
+        {/* ── 4. Archon Agent Chat Panel (Right, 380px) ───────────── */}
         <div className="w-[380px] bg-[#0c0e12] border-l border-[#161922] flex flex-col flex-shrink-0 overflow-hidden">
           
           <div className="px-3.5 py-2.5 border-b border-[#161922] bg-[#090b0e] flex justify-between items-center">
             <div className="flex items-center gap-2">
               <div className="w-5 h-5 rounded bg-[#12151c] border border-[#1e232e] flex items-center justify-center p-0.5 shadow-sm">
-                <img src="/aionlabs.svg" alt="AionLabs" className="w-full h-full object-contain" />
+                <img src="/aionlabs.svg" alt="Archon" className="w-full h-full object-contain" />
               </div>
               <span className="text-[12px] font-mono font-bold text-[#e2e5ea] tracking-tight">
-                Copilot Agent
+                Archon Agent
               </span>
               <span className="text-[10px] font-mono text-[#60a5fa] px-1.5 py-0.2 bg-[#3b82f6]/10 rounded border border-[#3b82f6]/20">
                 {selectedModel}
@@ -1055,9 +1146,10 @@ function VSCodeAgentIDE({
             <button
               onClick={() => setAgentMessages([{ role: 'assistant', content: "Chat history cleared. How can I help you?" }])}
               title="Clear Chat History"
-              className="text-[#64748b] hover:text-[#cbd5e1] text-[11px] font-mono p-1 rounded hover:bg-[#161922] cursor-pointer"
+              className="text-[#64748b] hover:text-[#cbd5e1] text-[11px] font-mono p-1 rounded hover:bg-[#161922] cursor-pointer flex items-center gap-1"
             >
-              🗑️ Clear
+              <Icons.Trash />
+              <span>Clear</span>
             </button>
           </div>
 
@@ -1072,8 +1164,9 @@ function VSCodeAgentIDE({
               <span>Include active file in context</span>
             </label>
             {activeTab && includeFileContext && (
-              <span className="text-[#60a5fa] truncate max-w-[130px] font-medium" title={activeTab.path}>
-                📄 {activeTab.name}
+              <span className="text-[#60a5fa] truncate max-w-[130px] font-medium flex items-center gap-1" title={activeTab.path}>
+                <Icons.FileCode />
+                <span className="truncate">{activeTab.name}</span>
               </span>
             )}
           </div>
@@ -1090,10 +1183,14 @@ function VSCodeAgentIDE({
               >
                 <div className="flex items-center gap-1.5 mb-1.5 text-[10.5px] font-mono font-bold">
                   {msg.role === 'user' ? (
-                    <span className="text-[#60a5fa]">👤 Developer</span>
+                    <span className="text-[#60a5fa] flex items-center gap-1.5">
+                      <Icons.User />
+                      <span>Developer</span>
+                    </span>
                   ) : (
-                    <span className="text-[#10b981] flex items-center gap-1">
-                      🤖 Copilot Agent
+                    <span className="text-[#10b981] flex items-center gap-1.5">
+                      <Icons.ArchonAI />
+                      <span>Archon Agent</span>
                     </span>
                   )}
                 </div>
@@ -1107,7 +1204,7 @@ function VSCodeAgentIDE({
 
             {agentLoading && (
               <div className="p-3 bg-[#08090a] border border-[#161922] rounded-lg text-[12px] font-mono text-[#60a5fa] flex items-center gap-2 animate-pulse">
-                <span className="animate-spin">⚡</span> Copilot Agent synthesizing solution...
+                <span className="animate-spin">⚡</span> Archon Agent synthesizing solution...
               </div>
             )}
           </div>
@@ -1116,21 +1213,24 @@ function VSCodeAgentIDE({
             <div className="p-2 border-t border-[#161922]/60 bg-[#08090a] flex items-center gap-1.5 overflow-x-auto custom-scrollbar">
               <button
                 onClick={() => handleSendAgentMessage(`Explain what ${activeTab.path} does and summarize its core logic.`)}
-                className="whitespace-nowrap px-2 py-0.5 rounded text-[10.5px] font-mono bg-[#12151c] hover:bg-[#1a1e26] text-[#8b949e] hover:text-[#60a5fa] border border-[#1a1e26] transition-colors cursor-pointer"
+                className="whitespace-nowrap px-2 py-1 rounded text-[10.5px] font-mono bg-[#12151c] hover:bg-[#1a1e26] text-[#8b949e] hover:text-[#60a5fa] border border-[#1a1e26] transition-colors cursor-pointer flex items-center gap-1"
               >
-                🔍 Explain file
+                <Icons.Search />
+                <span>Explain file</span>
               </button>
               <button
                 onClick={() => handleSendAgentMessage(`Review ${activeTab.path} for performance optimizations and clean code.`)}
-                className="whitespace-nowrap px-2 py-0.5 rounded text-[10.5px] font-mono bg-[#12151c] hover:bg-[#1a1e26] text-[#8b949e] hover:text-[#60a5fa] border border-[#1a1e26] transition-colors cursor-pointer"
+                className="whitespace-nowrap px-2 py-1 rounded text-[10.5px] font-mono bg-[#12151c] hover:bg-[#1a1e26] text-[#8b949e] hover:text-[#60a5fa] border border-[#1a1e26] transition-colors cursor-pointer flex items-center gap-1"
               >
-                ⚡ Optimize
+                <Icons.Bolt />
+                <span>Optimize</span>
               </button>
               <button
                 onClick={() => handleSendAgentMessage(`Write comprehensive unit tests for ${activeTab.path}.`)}
-                className="whitespace-nowrap px-2 py-0.5 rounded text-[10.5px] font-mono bg-[#12151c] hover:bg-[#1a1e26] text-[#8b949e] hover:text-[#60a5fa] border border-[#1a1e26] transition-colors cursor-pointer"
+                className="whitespace-nowrap px-2 py-1 rounded text-[10.5px] font-mono bg-[#12151c] hover:bg-[#1a1e26] text-[#8b949e] hover:text-[#60a5fa] border border-[#1a1e26] transition-colors cursor-pointer flex items-center gap-1"
               >
-                🧪 Unit Tests
+                <Icons.Diagnostics />
+                <span>Unit Tests</span>
               </button>
             </div>
           )}
@@ -1146,7 +1246,7 @@ function VSCodeAgentIDE({
                     handleSendAgentMessage();
                   }
                 }}
-                placeholder="Ask Copilot Agent (Enter to send, Shift+Enter for newline)..."
+                placeholder="Ask Archon Agent (Enter to send, Shift+Enter for newline)..."
                 rows={2}
                 className="w-full bg-transparent text-[#cbd5e1] p-2.5 text-[12px] font-mono focus:outline-none resize-none custom-scrollbar placeholder-[#475569]"
               />
@@ -1201,7 +1301,7 @@ function VSCodeAgentIDE({
             {showBottomPanel ? '▾ Panel' : '▸ Panel'}
           </button>
           <span className="text-[#10b981] flex items-center gap-1">
-            ● Copilot: {selectedModel} (GPU)
+            ● Archon: {selectedModel} (GPU)
           </span>
         </div>
       </div>
@@ -1213,7 +1313,7 @@ function VSCodeAgentIDE({
             <div className="flex justify-between items-center border-b border-[#1a1e26] pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-6 h-6 rounded bg-[#12151c] border border-[#1e232e] flex items-center justify-center p-0.5 shadow-sm">
-                  <img src="/aionlabs.svg" alt="AionLabs" className="w-full h-full object-contain" />
+                  <img src="/aionlabs.svg" alt="Archon" className="w-full h-full object-contain" />
                 </div>
                 <h3 className="text-[14px] font-mono font-bold text-[#e2e5ea]">
                   Open Folder / Project Workspace
@@ -1221,9 +1321,9 @@ function VSCodeAgentIDE({
               </div>
               <button
                 onClick={() => setShowOpenProjectModal(false)}
-                className="text-[#64748b] hover:text-[#cbd5e1] text-[14px] p-1 cursor-pointer"
+                className="text-[#64748b] hover:text-[#cbd5e1] p-1 cursor-pointer"
               >
-                ✕
+                <Icons.Close />
               </button>
             </div>
 
@@ -1260,7 +1360,7 @@ function VSCodeAgentIDE({
                       onClick={() => handleOpenProject(p)}
                       className="w-full text-left p-2 rounded bg-[#08090a] hover:bg-[#12151c] border border-[#1a1e26] hover:border-[#3b82f6]/40 text-[11.5px] font-mono text-[#8b949e] hover:text-[#60a5fa] transition-colors truncate flex items-center gap-2 cursor-pointer"
                     >
-                      <span>📁</span>
+                      <Icons.FolderClosed />
                       <span className="truncate">{p}</span>
                     </button>
                   ))}
@@ -1462,12 +1562,12 @@ export default function Home() {
           
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-[#12151c] border border-[#1e232e] flex items-center justify-center p-1.5 shadow-sm">
-              <img src="/aionlabs.svg" alt="AionLabs" className="w-full h-full object-contain" />
+              <img src="/aionlabs.svg" alt="Archon" className="w-full h-full object-contain" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[14px] font-semibold text-[#e2e5ea] tracking-tight">
-                  AionLabs API Copilot
+                  Archon Copilot
                 </span>
                 <span className="text-[9.5px] font-mono font-medium px-1.5 py-0.2 bg-[#12151c] border border-[#1e232e] text-[#60a5fa] rounded">
                   v2.0
@@ -1486,8 +1586,8 @@ export default function Home() {
                   : 'text-[#64748b] hover:text-[#cbd5e1]'
               }`}
             >
-              <span>⚡</span>
-              <span>API Copilot (RAG)</span>
+              <Icons.Bolt />
+              <span>Archon RAG</span>
             </button>
             <button
               onClick={() => setAppMode('copilot_agent')}
@@ -1497,8 +1597,8 @@ export default function Home() {
                   : 'text-[#64748b] hover:text-[#cbd5e1]'
               }`}
             >
-              <span>🧑‍💻</span>
-              <span>Copilot Agent (IDE)</span>
+              <Icons.ArchonAI />
+              <span>Archon Agent (IDE)</span>
             </button>
           </div>
 
@@ -1541,7 +1641,7 @@ export default function Home() {
                     onClick={() => setShowModal(false)} 
                     className="text-[#4a5060] hover:text-[#c8ccd0] transition-colors duration-300 w-8 h-8 flex items-center justify-center rounded-md hover:bg-[#1a1e26] cursor-pointer"
                   >
-                    ✕
+                    <Icons.Close />
                   </button>
                 </div>
                 <div className="p-5 overflow-y-auto flex-1 space-y-3 custom-scrollbar">
@@ -1576,10 +1676,10 @@ export default function Home() {
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-[#12151c] border border-[#1e232e] flex items-center justify-center p-1.5 shadow-sm">
-                      <img src="/aionlabs.svg" alt="AionLabs" className="w-full h-full object-contain" />
+                      <img src="/aionlabs.svg" alt="Archon" className="w-full h-full object-contain" />
                     </div>
                     <h1 className="text-[28px] font-semibold text-[#e2e5ea] tracking-[-0.02em] leading-tight">
-                      API Copilot
+                      Archon RAG
                     </h1>
                   </div>
                   <p className="text-[13px] text-[#4a5060] mt-1.5 font-mono">Hybrid retrieval (BM25 + Dense + Cross-Encoder) & Code Synthesis</p>
@@ -1722,7 +1822,7 @@ export default function Home() {
                         <div className="w-2.5 h-2.5 rounded-full bg-[#1a1e26]" />
                         <div className="w-2.5 h-2.5 rounded-full bg-[#1a1e26]" />
                         <div className="w-2.5 h-2.5 rounded-full bg-[#1a1e26]" />
-                        <span className="text-[11px] font-mono text-[#333a48] ml-2">api-copilot ~ output</span>
+                        <span className="text-[11px] font-mono text-[#333a48] ml-2">archon-copilot ~ output</span>
                       </div>
                       <div className="flex items-center gap-3">
                         {loading && (
@@ -1910,8 +2010,8 @@ export default function Home() {
 
             {/* Footer */}
             <div className="mt-8 flex justify-between items-center text-[10px] font-mono text-[#282e3a]">
-              <span>v0.9.0-hybrid-rag</span>
-              <span>Enterprise API Copilot • Multi-Strategy Diagnostic Portal</span>
+              <span>v2.0.0-archon</span>
+              <span>Archon Copilot • Multi-Strategy Diagnostic Portal</span>
             </div>
           </div>
         </main>
