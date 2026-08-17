@@ -125,9 +125,9 @@ function CodeBlock({
 
   return (
     <div className="my-3 bg-[#0a0c10] border border-[#1a1e26] rounded-lg overflow-hidden group shadow-md">
-      <div className="flex justify-between items-center px-3 py-1.5 bg-[#0e1015] border-b border-[#1a1e26] text-[11px] font-mono text-[#4a5060]">
-        <span className="uppercase tracking-wider text-[#6b7280] font-semibold text-[10px]">{lang}</span>
-        <div className="flex items-center gap-1.5">
+      <div className="flex justify-between items-center px-3.5 py-2 bg-[#0e1015] border-b border-[#1a1e26] text-[11px] font-mono text-[#4a5060]">
+        <span className="uppercase tracking-wider text-[#6b7280] font-semibold text-[10.5px]">{lang}</span>
+        <div className="flex items-center gap-2">
           {onApplyCode && (
             <button
               onClick={handleApply}
@@ -144,8 +144,8 @@ function CodeBlock({
           </button>
         </div>
       </div>
-      <div className="p-3.5 overflow-x-auto custom-scrollbar">
-        <pre className="text-[12px] font-mono leading-[1.65] text-[#93c5fd]">
+      <div className="p-4 overflow-x-auto custom-scrollbar">
+        <pre className="text-[12.5px] font-mono leading-[1.7] text-[#93c5fd]">
           <code>{text}</code>
         </pre>
       </div>
@@ -153,31 +153,31 @@ function CodeBlock({
   );
 }
 
-/* -- Rich Markdown Renderer ---------------------------------- */
+/* -- Rich Markdown Renderer (Hydration Safe) ----------------- */
 function FormattedMarkdown({ content, onApplyCode }: { content: string; onApplyCode?: (code: string) => void }) {
   return (
-    <div className="markdown-body space-y-2 font-sans leading-relaxed text-[#a0a6b5] text-[13px]">
+    <div className="markdown-body space-y-2 font-sans leading-relaxed text-[#a0a6b5] text-[13.5px]">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
           pre: ({ children }) => <>{children}</>,
           p: ({ children }) => (
-            <div className="leading-[1.75] my-1.5 text-[#9da5b4]">
+            <div className="leading-[1.8] my-2 text-[#9da5b4]">
               {children}
             </div>
           ),
           h1: ({ children }) => (
-            <h1 className="text-[18px] font-semibold text-[#e2e5ea] border-b border-[#1a1e26] pb-1.5 mt-4 mb-2 tracking-tight">
+            <h1 className="text-[20px] font-semibold text-[#e2e5ea] border-b border-[#1a1e26] pb-2 mt-6 mb-3 tracking-tight">
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="text-[15px] font-semibold text-[#d0d5dd] border-b border-[#1a1e26]/60 pb-1 mt-3 mb-2 tracking-tight">
+            <h2 className="text-[17px] font-semibold text-[#d0d5dd] border-b border-[#1a1e26]/60 pb-1.5 mt-5 mb-2.5 tracking-tight">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="text-[13.5px] font-medium text-[#c0c6d4] mt-2.5 mb-1.5 tracking-tight">
+            <h3 className="text-[15px] font-medium text-[#c0c6d4] mt-4 mb-2 tracking-tight">
               {children}
             </h3>
           ),
@@ -240,20 +240,20 @@ function RagPipeline({
   const [hoveredNode, setHoveredNode] = useState<number | null>(null);
 
   return (
-    <div className="border border-[#1a1e26] bg-[#090b0e] rounded-xl p-4 mb-5 relative overflow-hidden transition-all duration-300">
+    <div className="border border-[#1a1e26] bg-[#090b0e] rounded-xl p-5 mb-8 relative overflow-hidden transition-all duration-500 animate-fade-in">
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-[#3b82f6]/80 animate-pulse" />
-          <span className="text-[10px] font-mono text-[#6b7280] tracking-[0.2em] uppercase font-semibold">
-            RAG Pipeline Architecture
+          <div className="w-1.5 h-1.5 rounded-full bg-[#3b82f6] animate-pulse-slow" />
+          <span className="text-[10px] font-mono text-[#4a5060] tracking-[0.2em] uppercase font-semibold">
+            Interactive Retrieval Pipeline
           </span>
         </div>
-        <span className="text-[10px] font-mono text-[#4a5060]">
-          Click any node to inspect data & diagnostics
+        <span className="text-[10px] font-mono text-[#333a48]">
+          Click any stage node to jump to diagnostic inspector
         </span>
       </div>
 
-      <div className="flex items-center justify-between gap-1 overflow-x-auto pb-1 custom-scrollbar">
+      <div className="flex items-center justify-between gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
         {PIPELINE_STAGES.map((s, i) => {
           const isActive = currentStage === s.id;
           const isDone = currentStage > s.id;
@@ -266,39 +266,39 @@ function RagPipeline({
                 onClick={() => onNavigateStage(s)}
                 onMouseEnter={() => setHoveredNode(s.id)}
                 onMouseLeave={() => setHoveredNode(null)}
-                className={`group flex-1 min-w-[125px] p-2.5 rounded-lg border text-left transition-all duration-300 cursor-pointer relative ${
+                className={`group flex-1 min-w-[130px] p-3 rounded-lg border text-left transition-all duration-300 cursor-pointer relative ${
                   isActive
-                    ? 'bg-[#3b82f6]/10 border-[#3b82f6]/40 shadow-[0_0_15px_rgba(59,130,246,0.12)]'
+                    ? 'bg-[#3b82f6]/10 border-[#3b82f6]/50 shadow-[0_0_20px_rgba(59,130,246,0.15)] ring-1 ring-[#3b82f6]/30'
                     : isDone
-                      ? 'bg-[#10b981]/5 border-[#10b981]/25 hover:border-[#10b981]/40'
+                      ? 'bg-[#10b981]/5 border-[#10b981]/30 hover:border-[#10b981]/50'
                       : isHovered
-                        ? 'bg-[#0e1015] border-[#282e3a] shadow-md'
+                        ? 'bg-[#0e1015] border-[#282e3a] shadow-lg'
                         : 'bg-[#08090a] border-[#1a1e26] hover:border-[#282e3a]'
                 }`}
               >
-                <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center justify-between mb-1.5">
                   <span className={`text-[9px] font-mono font-bold tracking-wider uppercase ${
                     isActive ? 'text-[#60a5fa]' : isDone ? 'text-[#10b981]' : 'text-[#4a5060]'
                   }`}>
                     0{s.id + 1}
                   </span>
-                  <div className={`w-1.5 h-1.5 rounded-full transition-all ${
+                  <div className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
                     isActive ? 'bg-[#3b82f6] animate-ping' : isDone ? 'bg-[#10b981]' : 'bg-[#1a1e26] group-hover:bg-[#4a5060]'
                   }`} />
                 </div>
-                <div className={`text-[11.5px] font-mono font-semibold truncate transition-colors ${
-                  isActive ? 'text-[#e2e5ea]' : isDone ? 'text-[#cbd5e1]' : 'text-[#8b92a0] group-hover:text-[#e2e5ea]'
+                <div className={`text-[12px] font-mono font-semibold truncate transition-colors duration-300 ${
+                  isActive ? 'text-[#e2e5ea]' : isDone ? 'text-[#c8ccd0]' : 'text-[#8b92a0] group-hover:text-[#e2e5ea]'
                 }`}>
                   {s.label}
                 </div>
-                <div className="text-[9.5px] font-mono text-[#4a5060] truncate mt-0.5">
+                <div className="text-[10px] font-mono text-[#4a5060] truncate mt-0.5">
                   {s.sub}
                 </div>
               </button>
               {i < PIPELINE_STAGES.length - 1 && (
-                <div className="w-3.5 h-px relative flex-shrink-0">
-                  <div className={`h-full transition-all duration-500 ${
-                    currentStage > i ? 'bg-[#10b981]/50' : 'bg-[#1a1e26]'
+                <div className="w-4 h-px relative flex-shrink-0">
+                  <div className={`h-full transition-all duration-700 ${
+                    currentStage > i ? 'bg-[#10b981]/60' : 'bg-[#1a1e26]'
                   }`} />
                 </div>
               )}
@@ -310,7 +310,7 @@ function RagPipeline({
   );
 }
 
-/* -- Tree Node Component for File Explorer ------------------- */
+/* -- File Explorer Tree Node --------------------------------- */
 interface TreeNode {
   name: string;
   path: string;
@@ -379,7 +379,7 @@ function FileTreeNode({
   );
 }
 
-/* -- VS Code Style Copilot Agent IDE Workspace -------------- */
+/* -- VS Code Style Copilot Agent IDE Workspace --------------- */
 function VSCodeAgentIDE({
   apiBase,
   models,
@@ -391,7 +391,14 @@ function VSCodeAgentIDE({
   selectedModel: string;
   setSelectedModel: (m: string) => void;
 }) {
-  // File Explorer & Workspace State
+  // Project & Workspace State
+  const [currentProjectName, setCurrentProjectName] = useState('AIDeV');
+  const [currentProjectPath, setCurrentProjectPath] = useState('D:/AIDeV');
+  const [recentProjects, setRecentProjects] = useState<string[]>(['D:/AIDeV', 'C:/Users/gaura']);
+  const [showOpenProjectModal, setShowOpenProjectModal] = useState(false);
+  const [projectPathInput, setProjectPathInput] = useState('');
+  
+  // File Explorer State
   const [workspaceTree, setWorkspaceTree] = useState<TreeNode[]>([]);
   const [loadingTree, setLoadingTree] = useState(false);
   const [filterQuery, setFilterQuery] = useState('');
@@ -416,7 +423,7 @@ function VSCodeAgentIDE({
   const [agentMessages, setAgentMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([
     {
       role: 'assistant',
-      content: "👋 **Hello! I am your Copilot Agent.**\n\nI have full context of your open workspace and active code files. Click any file on the left to edit, and ask me to write, refactor, explain, or test your code."
+      content: "👋 **Hello! I am your Copilot Agent.**\n\nI have full context of your workspace, active editor files, and integrated Hybrid RAG API documentation. Click any file on the left to inspect and code, or ask me any programming question."
     }
   ]);
   const [agentInput, setAgentInput] = useState('');
@@ -426,24 +433,66 @@ function VSCodeAgentIDE({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
-  // Load Workspace Tree on Mount
-  const fetchTree = async () => {
+  // Load Projects and Workspace Tree
+  const fetchProjectsAndTree = async () => {
     setLoadingTree(true);
     try {
-      const res = await fetch(`${apiBase}/api/workspace/tree`);
-      if (res.ok) {
-        const data = await res.json();
-        setWorkspaceTree(data.tree || []);
+      const projRes = await fetch(`${apiBase}/api/workspace/projects`);
+      if (projRes.ok) {
+        const projData = await projRes.json();
+        setCurrentProjectName(projData.current_project || 'AIDeV');
+        setCurrentProjectPath(projData.project_path || 'D:/AIDeV');
+        setRecentProjects(projData.recent_projects || ['D:/AIDeV']);
+      }
+
+      const treeRes = await fetch(`${apiBase}/api/workspace/tree`);
+      if (treeRes.ok) {
+        const treeData = await treeRes.json();
+        setWorkspaceTree(treeData.tree || []);
       }
     } catch (e) {
-      console.error("Failed to load workspace tree", e);
+      console.error("Failed to load workspace", e);
     }
     setLoadingTree(false);
   };
 
   useEffect(() => {
-    fetchTree();
+    fetchProjectsAndTree();
   }, [apiBase]);
+
+  // Open Any Custom Folder / Project
+  const handleOpenProject = async (targetPath: string) => {
+    if (!targetPath.trim()) return;
+    try {
+      const res = await fetch(`${apiBase}/api/workspace/open-project`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: targetPath.trim() })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentProjectName(data.current_project);
+        setCurrentProjectPath(data.project_path);
+        setRecentProjects(data.recent_projects || []);
+        setShowOpenProjectModal(false);
+        setOpenTabs([]);
+        setActiveTabPath('');
+        setEditorContent('');
+        setTerminalLogs(prev => [...prev, `[Project Switch] Opened project folder: ${data.project_path}`]);
+        // Refresh Tree
+        const treeRes = await fetch(`${apiBase}/api/workspace/tree`);
+        if (treeRes.ok) {
+          const treeData = await treeRes.json();
+          setWorkspaceTree(treeData.tree || []);
+        }
+      } else {
+        const err = await res.json();
+        alert(`Could not open folder: ${err.detail || 'Directory not found'}`);
+      }
+    } catch (e) {
+      alert("Failed to connect to workspace service.");
+    }
+  };
 
   // Auto-scroll chat
   useEffect(() => {
@@ -539,7 +588,7 @@ function VSCodeAgentIDE({
         setOpenTabs(prev => prev.map(t => t.path === activeTabPath ? { ...t, original: editorContent } : t));
         setIsDirty(false);
         setSaveStatus('✓ Saved');
-        setTerminalLogs(prev => [...prev, `[File Save] Successfully wrote ${activeTabPath} (${editorContent.length} bytes)`]);
+        setTerminalLogs(prev => [...prev, `[File Save] Successfully saved ${activeTabPath} (${editorContent.length} bytes)`]);
         setTimeout(() => setSaveStatus(''), 2000);
       } else {
         setSaveStatus('❌ Error');
@@ -555,7 +604,6 @@ function VSCodeAgentIDE({
       e.preventDefault();
       handleSaveFile();
     }
-    // Tab key indentation
     if (e.key === 'Tab') {
       e.preventDefault();
       const target = e.currentTarget;
@@ -578,10 +626,10 @@ function VSCodeAgentIDE({
       setIsDirty(snippet !== active.original);
       setOpenTabs(prev => prev.map(t => t.path === activeTabPath ? { ...t, content: snippet } : t));
     }
-    setTerminalLogs(prev => [...prev, `[Copilot Apply] Applied AI code snippet to ${activeTabPath || 'active editor'}`]);
+    setTerminalLogs(prev => [...prev, `[Copilot Apply] Applied AI code block to ${activeTabPath || 'active editor'}`]);
   };
 
-  // Send Copilot Agent Message (Multi-turn SSE Stream)
+  // Send Copilot Agent Message (Multi-turn SSE Stream with Hybrid RAG)
   const handleSendAgentMessage = async (customPrompt?: string) => {
     const textToSend = customPrompt || agentInput;
     if (!textToSend.trim() || agentLoading) return;
@@ -591,7 +639,6 @@ function VSCodeAgentIDE({
     setAgentInput('');
     setAgentLoading(true);
 
-    // Placeholder assistant message
     const assistantIndex = newHistory.length;
     setAgentMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
@@ -672,10 +719,11 @@ function VSCodeAgentIDE({
 
   return (
     <div className="flex flex-col h-full w-full bg-[#08090a] text-[#c9d1d9] overflow-hidden select-none border-0">
+      
       {/* Main Workspace Row */}
       <div className="flex flex-1 overflow-hidden">
         
-        {/* -- 1. Activity Bar (Left, 46px) -------------------------- */}
+        {/* ── 1. Activity Bar (Left, 46px) ────────────────────────── */}
         <div className="w-[46px] bg-[#060708] border-r border-[#161922] flex flex-col items-center py-3 justify-between z-10 flex-shrink-0">
           <div className="flex flex-col items-center gap-4">
             <button
@@ -729,22 +777,39 @@ function VSCodeAgentIDE({
           </div>
         </div>
 
-        {/* -- 2. Sidebar (Explorer / Search, 250px) ------------------ */}
-        <div className="w-[250px] bg-[#0c0e12] border-r border-[#161922] flex flex-col flex-shrink-0 overflow-hidden">
+        {/* ── 2. Sidebar (Explorer / Search, 250px) ────────────────── */}
+        <div className="w-[260px] bg-[#0c0e12] border-r border-[#161922] flex flex-col flex-shrink-0 overflow-hidden">
+          
+          {/* Project Title Bar & Open Folder Button */}
           <div className="px-3 py-2.5 border-b border-[#161922] flex justify-between items-center bg-[#090b0e]">
-            <span className="text-[11px] font-mono font-bold tracking-wider text-[#94a3b8] uppercase">
-              {activeActivity === 'explorer' ? 'Workspace Explorer' : activeActivity === 'search' ? 'Search Files' : 'Mesh Diagnostics'}
-            </span>
-            <button
-              onClick={fetchTree}
-              title="Refresh Workspace"
-              className="text-[#64748b] hover:text-[#cbd5e1] text-[12px] p-1 rounded hover:bg-[#161922] cursor-pointer"
-            >
-              🔄
-            </button>
+            <div className="flex items-center gap-1.5 truncate">
+              <span className="text-[11px] font-mono font-bold tracking-wider text-[#e2e5ea] uppercase truncate max-w-[130px]" title={currentProjectPath}>
+                {currentProjectName}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  setProjectPathInput(currentProjectPath);
+                  setShowOpenProjectModal(true);
+                }}
+                title="Open Any Folder / Project..."
+                className="text-[#60a5fa] hover:text-[#93c5fd] text-[11px] font-mono px-2 py-0.5 rounded bg-[#12151c] hover:bg-[#1a1e26] border border-[#1e232e] cursor-pointer flex items-center gap-1"
+              >
+                <span>📂</span>
+                <span>Open</span>
+              </button>
+              <button
+                onClick={fetchProjectsAndTree}
+                title="Refresh Workspace"
+                className="text-[#64748b] hover:text-[#cbd5e1] text-[12px] p-1 rounded hover:bg-[#161922] cursor-pointer"
+              >
+                🔄
+              </button>
+            </div>
           </div>
 
-          {/* Quick Filter */}
+          {/* Quick Filter Input */}
           <div className="p-2 border-b border-[#161922]/60">
             <input
               type="text"
@@ -772,13 +837,13 @@ function VSCodeAgentIDE({
               ))
             ) : (
               <div className="p-4 text-[11px] font-mono text-[#64748b]">
-                No files loaded.
+                No files found in workspace.
               </div>
             )}
           </div>
         </div>
 
-        {/* -- 3. Central Code Editor Panel (Flex-1) ------------------ */}
+        {/* ── 3. Central Code Editor Panel (Flex-1) ────────────────── */}
         <div className="flex-1 flex flex-col bg-[#090b0e] overflow-hidden">
           
           {/* Tab Bar */}
@@ -823,7 +888,7 @@ function VSCodeAgentIDE({
           {activeTab && (
             <div className="flex justify-between items-center px-4 py-1.5 bg-[#0a0c10] border-b border-[#161922] text-[11px] font-mono text-[#64748b]">
               <div className="flex items-center gap-1.5 truncate">
-                <span className="text-[#3b82f6]">AIDeV</span>
+                <span className="text-[#3b82f6]">{currentProjectName}</span>
                 {activeTab.path.split('/').map((seg, i, arr) => (
                   <React.Fragment key={i}>
                     <span>›</span>
@@ -833,7 +898,7 @@ function VSCodeAgentIDE({
               </div>
               <div className="flex items-center gap-3">
                 {saveStatus && (
-                  <span className="text-[11px] text-[#10b981] font-mono animate-fade-in font-medium">
+                  <span className="text-[11px] text-[#10b981] font-mono font-medium">
                     {saveStatus}
                   </span>
                 )}
@@ -856,7 +921,6 @@ function VSCodeAgentIDE({
           {/* Code Textarea & Gutter */}
           {activeTab ? (
             <div className="flex-1 flex overflow-hidden relative">
-              {/* Line Numbers Gutter */}
               <div className="w-[48px] bg-[#07080a] border-r border-[#161922] text-right py-3 px-2 text-[12px] font-mono text-[#475569] select-none overflow-hidden leading-[1.6]">
                 {Array.from({ length: lineCount }).map((_, i) => (
                   <div key={i} className={cursorPos.line === i + 1 ? 'text-[#60a5fa] font-bold' : ''}>
@@ -865,7 +929,6 @@ function VSCodeAgentIDE({
                 ))}
               </div>
 
-              {/* Code Textarea */}
               <textarea
                 ref={textareaRef}
                 value={editorContent}
@@ -884,29 +947,30 @@ function VSCodeAgentIDE({
                 ⚡
               </div>
               <h3 className="text-[16px] font-semibold text-[#e2e5ea] mb-1">
-                Enterprise Copilot Agent Workspace
+                {currentProjectName} Workspace
               </h3>
-              <p className="text-[12.5px] font-mono text-[#64748b] max-w-[360px] leading-relaxed mb-6">
-                Open any file from the workspace explorer to edit code, or interact with the Copilot Agent on the right.
+              <p className="text-[12px] font-mono text-[#64748b] max-w-[380px] leading-relaxed mb-6">
+                Folder: <span className="text-[#94a3b8]">{currentProjectPath}</span>
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <button
-                  onClick={() => handleOpenFile('README.md')}
-                  className="bg-[#12151c] hover:bg-[#1a1e26] text-[#60a5fa] border border-[#1e232e] px-3.5 py-1.5 rounded-lg text-[11.5px] font-mono transition-all cursor-pointer"
+                  onClick={() => setShowOpenProjectModal(true)}
+                  className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-lg text-[12px] font-mono transition-all cursor-pointer font-medium flex items-center gap-1.5"
                 >
-                  📄 Open README.md
+                  <span>📂</span>
+                  <span>Open Any Folder...</span>
                 </button>
                 <button
-                  onClick={() => handleOpenFile('services/orchestrator_service/app/main.py')}
-                  className="bg-[#12151c] hover:bg-[#1a1e26] text-[#cbd5e1] border border-[#1e232e] px-3.5 py-1.5 rounded-lg text-[11.5px] font-mono transition-all cursor-pointer"
+                  onClick={() => handleOpenFile('README.md')}
+                  className="bg-[#12151c] hover:bg-[#1a1e26] text-[#cbd5e1] border border-[#1e232e] px-4 py-2 rounded-lg text-[12px] font-mono transition-all cursor-pointer"
                 >
-                  ⚡ Open main.py
+                  📄 Open README.md
                 </button>
               </div>
             </div>
           )}
 
-          {/* -- Collapsible Bottom Panel (Terminal / Logs) ----------- */}
+          {/* Collapsible Bottom Panel */}
           {showBottomPanel && (
             <div className="h-[140px] bg-[#07080a] border-t border-[#161922] flex flex-col flex-shrink-0">
               <div className="flex justify-between items-center px-3 py-1 bg-[#090b0e] border-b border-[#161922] text-[11px] font-mono">
@@ -950,19 +1014,19 @@ function VSCodeAgentIDE({
                 )}
                 {bottomTab === 'terminal' && (
                   <div className="text-[#38bdf8]">
-                    <span>$ Enterprise Copilot Agent v1.0.0 --mesh=active</span><br />
+                    <span>$ Enterprise Copilot Agent v1.0.0 --active-project={currentProjectName}</span><br />
                     <span className="text-[#10b981]">✓ Ingestion Service (8002): Online</span><br />
                     <span className="text-[#10b981]">✓ RAG Hybrid Engine (8001): Online (20 indexed chunks)</span><br />
                     <span className="text-[#10b981]">✓ Orchestrator Gateway (8000): Ready</span><br />
-                    <span className="text-[#10b981]">✓ Local GPU Ollama (11434): gemma3:4b Active</span>
+                    <span className="text-[#10b981]">✓ Local GPU Ollama (11434): {selectedModel} Active</span>
                   </div>
                 )}
                 {bottomTab === 'diagnostics' && (
                   <div className="text-[#cbd5e1]">
+                    <span>Project: {currentProjectPath}</span><br />
                     <span>Active File: {activeTabPath || 'None'}</span><br />
                     <span>Line Count: {lineCount} | Characters: {editorContent.length}</span><br />
-                    <span>Unsaved Buffer: {isDirty ? 'Yes' : 'No'}</span><br />
-                    <span>Ollama Model: {selectedModel} (GPU 100% VRAM)</span>
+                    <span>Unsaved Buffer: {isDirty ? 'Yes' : 'No'}</span>
                   </div>
                 )}
               </div>
@@ -970,10 +1034,9 @@ function VSCodeAgentIDE({
           )}
         </div>
 
-        {/* -- 4. Copilot Agent Chat Panel (Right, 380px) ------------ */}
+        {/* ── 4. Copilot Agent Chat Panel (Right, 380px) ──────────── */}
         <div className="w-[380px] bg-[#0c0e12] border-l border-[#161922] flex flex-col flex-shrink-0 overflow-hidden">
           
-          {/* Agent Header */}
           <div className="px-3.5 py-2.5 border-b border-[#161922] bg-[#090b0e] flex justify-between items-center">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-[#3b82f6] animate-pulse" />
@@ -985,7 +1048,7 @@ function VSCodeAgentIDE({
               </span>
             </div>
             <button
-              onClick={() => setAgentMessages([{ role: 'assistant', content: "Chat cleared. Ready for your next request." }])}
+              onClick={() => setAgentMessages([{ role: 'assistant', content: "Chat history cleared. How can I help you?" }])}
               title="Clear Chat History"
               className="text-[#64748b] hover:text-[#cbd5e1] text-[11px] font-mono p-1 rounded hover:bg-[#161922] cursor-pointer"
             >
@@ -993,7 +1056,6 @@ function VSCodeAgentIDE({
             </button>
           </div>
 
-          {/* Active File Context Chip */}
           <div className="px-3 py-1.5 bg-[#08090a] border-b border-[#161922]/60 flex items-center justify-between text-[11px] font-mono">
             <label className="flex items-center gap-1.5 cursor-pointer text-[#8b949e]">
               <input
@@ -1002,7 +1064,7 @@ function VSCodeAgentIDE({
                 onChange={(e) => setIncludeFileContext(e.target.checked)}
                 className="rounded border-[#1e232e] bg-[#12151c] text-[#3b82f6] focus:ring-0 cursor-pointer"
               />
-              <span>Include active file context</span>
+              <span>Include active file in context</span>
             </label>
             {activeTab && includeFileContext && (
               <span className="text-[#60a5fa] truncate max-w-[130px] font-medium" title={activeTab.path}>
@@ -1011,7 +1073,6 @@ function VSCodeAgentIDE({
             )}
           </div>
 
-          {/* Chat Messages Stream */}
           <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-3.5 space-y-4 custom-scrollbar">
             {agentMessages.map((msg, i) => (
               <div
@@ -1046,17 +1107,16 @@ function VSCodeAgentIDE({
             )}
           </div>
 
-          {/* Quick Prompts */}
           {activeTab && (
             <div className="p-2 border-t border-[#161922]/60 bg-[#08090a] flex items-center gap-1.5 overflow-x-auto custom-scrollbar">
               <button
-                onClick={() => handleSendAgentMessage(`Explain the architecture and key functions of ${activeTab.path}`)}
+                onClick={() => handleSendAgentMessage(`Explain what ${activeTab.path} does and summarize its core logic.`)}
                 className="whitespace-nowrap px-2 py-0.5 rounded text-[10.5px] font-mono bg-[#12151c] hover:bg-[#1a1e26] text-[#8b949e] hover:text-[#60a5fa] border border-[#1a1e26] transition-colors cursor-pointer"
               >
                 🔍 Explain file
               </button>
               <button
-                onClick={() => handleSendAgentMessage(`Review ${activeTab.path} for bugs, edge cases, and performance optimizations.`)}
+                onClick={() => handleSendAgentMessage(`Review ${activeTab.path} for performance optimizations and clean code.`)}
                 className="whitespace-nowrap px-2 py-0.5 rounded text-[10.5px] font-mono bg-[#12151c] hover:bg-[#1a1e26] text-[#8b949e] hover:text-[#60a5fa] border border-[#1a1e26] transition-colors cursor-pointer"
               >
                 ⚡ Optimize
@@ -1070,7 +1130,6 @@ function VSCodeAgentIDE({
             </div>
           )}
 
-          {/* Chat Input Bar */}
           <div className="p-3 border-t border-[#161922] bg-[#090b0e]">
             <div className="relative border border-[#1e232e] focus-within:border-[#3b82f6]/50 rounded-lg bg-[#08090a] transition-all">
               <textarea
@@ -1114,11 +1173,11 @@ function VSCodeAgentIDE({
         </div>
       </div>
 
-      {/* -- 5. Status Bar (Bottom, 24px) ---------------------------- */}
+      {/* ── 5. Status Bar (Bottom, 24px) ──────────────────────────── */}
       <div className="h-[24px] bg-[#060708] border-t border-[#161922] px-3 flex justify-between items-center text-[11px] font-mono text-[#64748b] flex-shrink-0">
         <div className="flex items-center gap-4">
           <span className="text-[#60a5fa] flex items-center gap-1 font-medium">
-            ⎇ main
+            ⎇ main ({currentProjectName})
           </span>
           {activeTab && (
             <span>
@@ -1141,13 +1200,84 @@ function VSCodeAgentIDE({
           </span>
         </div>
       </div>
+
+      {/* ── Open Project / Folder Dialog Modal ───────────────────── */}
+      {showOpenProjectModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0c0e12] border border-[#1a1e26] rounded-xl max-w-[550px] w-full p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-[#1a1e26] pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[18px]">📂</span>
+                <h3 className="text-[14px] font-mono font-bold text-[#e2e5ea]">
+                  Open Folder / Project Workspace
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowOpenProjectModal(false)}
+                className="text-[#64748b] hover:text-[#cbd5e1] text-[14px] p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[11px] font-mono text-[#8b949e]">
+                Enter local folder path:
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={projectPathInput}
+                  onChange={(e) => setProjectPathInput(e.target.value)}
+                  placeholder="e.g. D:/AIDeV or C:/Users/gaura/projects/my-app"
+                  className="flex-1 bg-[#08090a] border border-[#1a1e26] rounded-lg px-3 py-2 text-[12px] font-mono text-[#e2e5ea] focus:outline-none focus:border-[#3b82f6]"
+                />
+                <button
+                  onClick={() => handleOpenProject(projectPathInput)}
+                  className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-lg text-[12px] font-mono font-semibold transition-all cursor-pointer"
+                >
+                  Open
+                </button>
+              </div>
+            </div>
+
+            {recentProjects.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-[#161922]">
+                <div className="text-[11px] font-mono text-[#64748b] uppercase tracking-wider">
+                  Recent Workspaces:
+                </div>
+                <div className="space-y-1.5 max-h-[160px] overflow-y-auto custom-scrollbar">
+                  {recentProjects.map((p, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleOpenProject(p)}
+                      className="w-full text-left p-2 rounded bg-[#08090a] hover:bg-[#12151c] border border-[#1a1e26] hover:border-[#3b82f6]/40 text-[11.5px] font-mono text-[#8b949e] hover:text-[#60a5fa] transition-colors truncate flex items-center gap-2 cursor-pointer"
+                    >
+                      <span>📁</span>
+                      <span className="truncate">{p}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setShowOpenProjectModal(false)}
+                className="bg-[#12151c] hover:bg-[#1a1e26] text-[#8b949e] px-4 py-1.5 rounded-lg text-[12px] font-mono cursor-pointer border border-[#1e232e]"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 /* -- Main Application Component ------------------------------ */
 export default function Home() {
-  // Top-level Mode Switcher: 'api_copilot' | 'copilot_agent'
   const [appMode, setAppMode] = useState<'api_copilot' | 'copilot_agent'>('api_copilot');
 
   // Shared Global State
@@ -1155,12 +1285,12 @@ export default function Home() {
   const [selectedModel, setSelectedModel] = useState<string>("gemma3:4b");
   const [dbData, setDbData] = useState<{ fixed_chunks: string[], semantic_chunks: string[] }>({ fixed_chunks: [], semantic_chunks: [] });
   
-  // API Copilot Mode State
+  // API Copilot Original View State
   const [query, setQuery] = useState('');
   const [generation, setGeneration] = useState('');
   const [loading, setLoading] = useState(false);
   const [pipelineStage, setPipelineStage] = useState<number>(-1);
-  const [activeTab, setActiveTab] = useState<'terminal' | 'search' | 'database'>('terminal');
+  const [activeTab, setActiveTab] = useState<'terminal' | 'search' | 'db'>('terminal');
   const [searchData, setSearchData] = useState<{ bm25: any[]; dense: any[]; cross_encoder: any[] } | null>(null);
   const [highlightStrategy, setHighlightStrategy] = useState<string | null>(null);
   
@@ -1279,7 +1409,7 @@ export default function Home() {
   };
 
   const handleNavigateStage = (stage: typeof PIPELINE_STAGES[0]) => {
-    setActiveTab(stage.targetTab as 'terminal' | 'search' | 'database');
+    setActiveTab(stage.targetTab as 'terminal' | 'search' | 'db');
     if (stage.highlightKey) {
       setHighlightStrategy(stage.highlightKey);
       setTimeout(() => setHighlightStrategy(null), 3000);
@@ -1310,14 +1440,19 @@ export default function Home() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const tabs = [
+    { id: 'terminal', label: 'Code Synthesis', icon: '▸' },
+    { id: 'search', label: 'Search Diagnostics', icon: '◈' },
+    { id: 'db', label: 'Knowledge Base', icon: '◆' },
+  ];
+
   return (
     <div className="min-h-screen bg-[#08090a] text-[#c8ccd0] font-sans antialiased selection:bg-[#2563eb]/30 selection:text-white">
       
-      {/* -- Top App Header & Mode Switcher -------------------------- */}
-      <header className="border-b border-[#161922] bg-[#07080a]/90 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-[1600px] mx-auto px-6 h-[58px] flex items-center justify-between">
+      {/* ── Top Universal Header & Mode Switcher ──────────────────── */}
+      <header className="border-b border-[#161922] bg-[#07080a]/95 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-[1400px] mx-auto px-6 h-[56px] flex items-center justify-between">
           
-          {/* Logo & Product Brand */}
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-[#12151c] border border-[#1e232e] flex items-center justify-center text-[#60a5fa] text-[15px] font-bold shadow-sm">
               ⚡
@@ -1331,13 +1466,10 @@ export default function Home() {
                   v2.0
                 </span>
               </div>
-              <p className="text-[10.5px] font-mono text-[#64748b]">
-                Multi-Service RAG & Pair Programming Agent
-              </p>
             </div>
           </div>
 
-          {/* -- Center: Mode Switcher (API Copilot vs Copilot Agent IDE) -- */}
+          {/* Center Mode Switcher */}
           <div className="flex items-center p-1 bg-[#0c0e12] border border-[#1a1e26] rounded-xl shadow-inner">
             <button
               onClick={() => setAppMode('api_copilot')}
@@ -1363,34 +1495,16 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Header Actions (Model Selector & Status) */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-[#0c0e12] border border-[#1a1e26] rounded-lg px-2.5 py-1">
-              <span className="text-[11px] font-mono text-[#64748b]">Model:</span>
-              <select
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                className="bg-transparent text-[11.5px] font-mono text-[#60a5fa] focus:outline-none cursor-pointer font-medium"
-              >
-                {models.length > 0 ? (
-                  models.map(m => <option key={m} value={m} className="bg-[#0c0e12]">{m}</option>)
-                ) : (
-                  <option value="gemma3:4b" className="bg-[#0c0e12]">gemma3:4b</option>
-                )}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#10b981]/10 border border-[#10b981]/25 rounded-lg text-[11px] font-mono text-[#10b981]">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
-              <span>Mesh Online</span>
-            </div>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#10b981]/10 border border-[#10b981]/25 rounded-lg text-[11px] font-mono text-[#10b981]">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
+            <span>Mesh Online</span>
           </div>
         </div>
       </header>
 
-      {/* -- VIEWPORT CONTENT SWITCHER ------------------------------- */}
+      {/* ── VIEWPORT CONTENT SWITCHER ─────────────────────────────── */}
       {appMode === 'copilot_agent' ? (
-        <main className="w-full h-[calc(100vh-58px)] overflow-hidden">
+        <main className="w-full h-[calc(100vh-56px)] overflow-hidden">
           <VSCodeAgentIDE
             apiBase={API_BASE}
             models={models}
@@ -1399,329 +1513,396 @@ export default function Home() {
           />
         </main>
       ) : (
-        <main className="max-w-[1600px] mx-auto p-5">
-          <div className="space-y-5 animate-fade-in">
-            {/* Interactive RAG Pipeline Visualization */}
+        <main className="min-h-[calc(100vh-56px)] p-6 md:p-10">
+          
+          {/* Upload Spec Modal */}
+          {showModal && (
+            <div 
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+              onClick={() => setShowModal(false)}
+            >
+              <div 
+                className="bg-[#0e1015] border border-[#1a1e26] rounded-xl max-w-3xl w-full max-h-[75vh] flex flex-col"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="px-6 py-5 border-b border-[#1a1e26] flex justify-between items-center">
+                  <div>
+                    <h3 className="text-base font-semibold text-[#e2e5ea] tracking-tight">Document Ingested</h3>
+                    <p className="text-xs text-[#4a5060] mt-1 font-mono">{uploadChunks.length} semantic segments extracted</p>
+                  </div>
+                  <button 
+                    onClick={() => setShowModal(false)} 
+                    className="text-[#4a5060] hover:text-[#c8ccd0] transition-colors duration-300 w-8 h-8 flex items-center justify-center rounded-md hover:bg-[#1a1e26] cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="p-5 overflow-y-auto flex-1 space-y-3 custom-scrollbar">
+                  {uploadChunks.map((chunk, i) => (
+                    <div key={i} className="bg-[#08090a] border border-[#1a1e26] rounded-lg p-4 hover:border-[#282e3a] transition-colors duration-300">
+                      <div className="text-[10px] font-mono font-medium text-[#4a5060] mb-2.5 tracking-wider uppercase">Segment {i + 1}</div>
+                      <pre className="text-[12.5px] text-[#8b92a0] whitespace-pre-wrap font-mono leading-relaxed">{chunk}</pre>
+                    </div>
+                  ))}
+                </div>
+                <div className="px-6 py-4 border-t border-[#1a1e26] flex justify-end">
+                  <button 
+                    onClick={() => setShowModal(false)} 
+                    className="bg-[#1a1e26] hover:bg-[#282e3a] text-[#c8ccd0] px-6 py-2 rounded-lg text-sm font-medium transition-all duration-300 cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="max-w-[1200px] mx-auto">
+            
+            {/* Header */}
+            <header className="mb-8">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-2 h-2 rounded-full bg-[#3b82f6] animate-pulse" />
+                    <span className="text-[10px] font-mono font-medium text-[#4a5060] tracking-[0.2em] uppercase">RAG Engine Live</span>
+                  </div>
+                  <h1 className="text-[28px] font-semibold text-[#e2e5ea] tracking-[-0.02em] leading-tight">
+                    API Copilot
+                  </h1>
+                  <p className="text-[13px] text-[#4a5060] mt-1.5 font-mono">Hybrid retrieval (BM25 + Dense + Cross-Encoder) & Code Synthesis</p>
+                </div>
+                
+                <div className="flex gap-3 items-end">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-mono font-medium text-[#4a5060] tracking-wider uppercase">Ingest Spec</label>
+                    <div>
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={handleUpload} 
+                        className="hidden" 
+                        id="file-upload"
+                        accept=".json,.yaml,.yml,.md" 
+                      />
+                      <label 
+                        htmlFor="file-upload" 
+                        className="cursor-pointer flex items-center gap-2 bg-[#0e1015] border border-[#1a1e26] hover:border-[#282e3a] text-[#6b7280] hover:text-[#c8ccd0] px-4 py-2 rounded-lg text-sm font-mono transition-all duration-300"
+                      >
+                        {uploading ? (
+                          <span className="flex items-center gap-2"><span className="animate-spin text-[#3b82f6]">⟳</span>Ingesting</span>
+                        ) : (
+                          <><span className="text-[#4a5060]">↑</span>Upload</>
+                        )}
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-mono font-medium text-[#4a5060] tracking-wider uppercase">Active Model</label>
+                    <select 
+                      value={selectedModel} 
+                      onChange={e => setSelectedModel(e.target.value)}
+                      className="bg-[#0e1015] border border-[#1a1e26] hover:border-[#282e3a] text-[#c8ccd0] py-2 px-4 rounded-lg text-sm font-mono outline-none focus:border-[#282e3a] transition-all duration-300 cursor-pointer"
+                    >
+                      {models.length > 0 ? (
+                        models.map(m => <option key={m} value={m} className="bg-[#0e1015]">{m}</option>)
+                      ) : (
+                        <option value="gemma3:4b" className="bg-[#0e1015]">gemma3:4b</option>
+                      )}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="h-px bg-gradient-to-r from-[#1a1e26] via-[#282e3a] to-[#1a1e26] mt-6" />
+            </header>
+
+            {/* Global Interactive Pipeline Visualizer */}
             <RagPipeline 
               currentStage={pipelineStage} 
               onNavigateStage={handleNavigateStage} 
             />
 
-            {/* Main Interactive Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            {/* Command Input Bar */}
+            <div className={`mb-6 transition-all duration-500 ${inputFocused ? 'scale-[1.003]' : ''}`}>
+              <div className={`bg-[#0e1015] border rounded-xl p-1.5 pl-5 flex items-center transition-all duration-500 ${inputFocused ? 'border-[#282e3a] shadow-[0_0_30px_rgba(59,130,246,0.05)]' : 'border-[#1a1e26]'}`}>
+                <span className="text-[#282e3a] mr-3 font-mono text-sm select-none">▸</span>
+                <input
+                  type="text"
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  onFocus={() => setInputFocused(true)}
+                  onBlur={() => setInputFocused(false)}
+                  onKeyDown={e => e.key === 'Enter' && handleProcess()}
+                  placeholder="Ask any API question… e.g. How do I create a customer charge in Stripe?"
+                  className="bg-transparent border-none outline-none text-[#e2e5ea] placeholder-[#282e3a] flex-1 text-sm font-mono leading-relaxed"
+                />
+                <button
+                  onClick={handleProcess}
+                  disabled={loading || !query.trim()}
+                  className={`px-5 py-2.5 rounded-lg text-xs font-mono font-medium transition-all duration-300 flex items-center gap-2 cursor-pointer ${
+                    loading || !query.trim() 
+                      ? 'bg-transparent text-[#282e3a] cursor-not-allowed' 
+                      : 'bg-[#1a1e26] text-[#c8ccd0] hover:bg-[#282e3a] hover:text-white border border-[#282e3a]/50 shadow-sm'
+                  }`}
+                >
+                  {loading ? (
+                    <><span className="animate-spin text-[#3b82f6]">⟳</span>Processing</>
+                  ) : (
+                    <>Execute<span className="text-[10px] text-[#4a5060]">↵</span></>
+                  )}
+                </button>
+              </div>
+
+              {/* Sample Queries */}
+              <div className="flex gap-2 mt-2.5 overflow-x-auto pb-1 text-[11px] font-mono text-[#333a48] custom-scrollbar">
+                <span className="text-[#282e3a] select-none py-0.5">Try:</span>
+                {[
+                  "How to charge a card in Stripe?",
+                  "Twilio send SMS endpoint & parameters",
+                  "SendGrid v3 mail send cURL",
+                  "Slack chat.postMessage payload"
+                ].map((sample, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setQuery(sample)}
+                    className="hover:text-[#6b7280] transition-colors duration-300 whitespace-nowrap bg-[#0a0c10] hover:bg-[#0e1015] px-2.5 py-0.5 rounded border border-[#14171e] hover:border-[#1a1e26] cursor-pointer"
+                  >
+                    {sample}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Strategy Tabs & Display Panel */}
+            <div className="bg-[#0e1015] border border-[#1a1e26] rounded-xl overflow-hidden shadow-2xl">
               
-              {/* Left Column: Query Input & Document Actions (5 cols) */}
-              <div className="lg:col-span-5 space-y-4">
-                <div className={`bg-[#0c0e12] border rounded-xl p-5 shadow-xl transition-all duration-300 ${
-                  inputFocused ? 'border-[#3b82f6]/40 shadow-[0_0_20px_rgba(59,130,246,0.1)]' : 'border-[#161922]'
-                }`}>
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-[11px] font-mono text-[#64748b] uppercase tracking-wider font-semibold">
-                      API Query Input
+              {/* Tab Bar */}
+              <div className="flex border-b border-[#1a1e26] bg-[#0a0c10]">
+                {tabs.map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`flex items-center gap-2 px-6 py-3.5 text-xs font-mono transition-all duration-300 relative cursor-pointer ${
+                      activeTab === tab.id
+                        ? 'text-[#e2e5ea] bg-[#0e1015] font-medium'
+                        : 'text-[#4a5060] hover:text-[#8b92a0] hover:bg-[#0c0e12]'
+                    }`}
+                  >
+                    <span className={`text-[10px] ${activeTab === tab.id ? 'text-[#3b82f6]' : 'text-[#282e3a]'}`}>
+                      {tab.icon}
                     </span>
-                    <span className="text-[10px] font-mono text-[#475569]">
-                      Enter endpoint intent
-                    </span>
-                  </div>
+                    {tab.label}
+                    {activeTab === tab.id && (
+                      <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#3b82f6] shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                    )}
+                  </button>
+                ))}
+              </div>
 
-                  <textarea
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    onFocus={() => setInputFocused(true)}
-                    onBlur={() => setInputFocused(false)}
-                    placeholder="e.g. How do I create a customer charge in Stripe with idempotency key?"
-                    rows={3}
-                    className="w-full bg-[#08090a] text-[#e2e5ea] border border-[#1a1e26] rounded-lg p-3.5 text-[13px] font-mono placeholder-[#475569] focus:outline-none focus:border-[#3b82f6]/50 resize-none transition-all leading-relaxed"
-                  />
-
-                  <div className="flex items-center justify-between mt-4">
-                    <div className="flex items-center gap-2">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        onChange={handleUpload}
-                        accept=".yaml,.yml,.json,.md,.txt"
-                        className="hidden"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploading}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#1a1e26] bg-[#08090a] hover:bg-[#12151c] text-[#8b949e] hover:text-[#e2e5ea] text-[11.5px] font-mono transition-all cursor-pointer"
-                      >
-                        <span>📁</span>
-                        <span>{uploading ? 'Parsing...' : 'Upload Spec'}</span>
-                      </button>
+              {/* Tab 1: Terminal Code Synthesis View */}
+              {activeTab === 'terminal' && (
+                <div className="p-6">
+                  <div className="bg-[#08090a] border border-[#1a1e26] rounded-lg overflow-hidden">
+                    <div className="flex justify-between items-center px-4 py-2.5 border-b border-[#1a1e26] bg-[#0a0c10]/60">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#1a1e26]" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#1a1e26]" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#1a1e26]" />
+                        <span className="text-[11px] font-mono text-[#333a48] ml-2">api-copilot ~ output</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {loading && (
+                          <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#3b82f6]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#3b82f6] animate-pulse" />
+                            Streaming…
+                          </div>
+                        )}
+                        <span className="text-[10px] font-mono text-[#282e3a]">{selectedModel}</span>
+                      </div>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={handleProcess}
-                      disabled={loading || !query.trim()}
-                      className={`px-5 py-2 rounded-lg font-mono text-[12px] font-semibold transition-all cursor-pointer flex items-center gap-2 ${
-                        loading || !query.trim()
-                          ? 'bg-[#12151c] text-[#475569] border border-[#1a1e26] cursor-not-allowed'
-                          : 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white shadow-lg shadow-[#2563eb]/20'
-                      }`}
-                    >
-                      {loading ? (
-                        <>
-                          <span className="animate-spin">⌛</span>
-                          <span>Retrieving...</span>
-                        </>
+                    <div ref={outputRef} className="p-6 min-h-[350px] max-h-[550px] overflow-y-auto custom-scrollbar">
+                      {generation ? (
+                        <FormattedMarkdown content={generation} />
+                      ) : loading ? (
+                        <div className="flex flex-col items-center justify-center h-[300px] text-[#333a48] font-mono text-xs space-y-3">
+                          <div className="w-6 h-6 border-2 border-[#1a1e26] border-t-[#3b82f6] rounded-full animate-spin" />
+                          <span>Generating endpoint synthesis…</span>
+                        </div>
                       ) : (
-                        <>
-                          <span>⚡ Execute Hybrid RAG</span>
-                        </>
+                        <div className="flex flex-col items-center justify-center h-[300px] text-[#282e3a] font-mono text-xs space-y-2">
+                          <span>$ Enter a query above to execute hybrid search & synthesis.</span>
+                        </div>
                       )}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Quick Query Templates */}
-                <div className="bg-[#0c0e12] border border-[#161922] rounded-xl p-4">
-                  <div className="text-[11px] font-mono text-[#64748b] uppercase tracking-wider mb-2.5 font-semibold">
-                    Suggested Ingestion Queries
-                  </div>
-                  <div className="space-y-1.5">
-                    {[
-                      "How do I create a card charge in Enterprise Payments API?",
-                      "What is the Twilio SMS endpoint and required authentication?",
-                      "How do I post a message to a Slack channel using chat.postMessage?",
-                      "Show me SendGrid v3 mail send endpoint and parameters"
-                    ].map((sample, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => setQuery(sample)}
-                        className="w-full text-left p-2 rounded-lg bg-[#08090a] hover:bg-[#12151c] border border-[#1a1e26] hover:border-[#282e3a] text-[11.5px] font-mono text-[#8b949e] hover:text-[#60a5fa] transition-all truncate cursor-pointer"
-                      >
-                        ▸ {sample}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: Dynamic Terminal & Search Diagnostics (7 cols) */}
-              <div className="lg:col-span-7 space-y-4">
-                <div className="bg-[#0c0e12] border border-[#161922] rounded-xl overflow-hidden shadow-2xl flex flex-col h-[560px]">
-                  
-                  {/* Tab Navigation */}
-                  <div className="flex justify-between items-center px-4 py-2 bg-[#090b0e] border-b border-[#161922]">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('terminal')}
-                        className={`px-3 py-1 rounded-lg text-[11.5px] font-mono font-medium transition-all cursor-pointer ${
-                          activeTab === 'terminal'
-                            ? 'bg-[#1e293b] text-[#60a5fa] border border-[#3b82f6]/30'
-                            : 'text-[#64748b] hover:text-[#cbd5e1]'
-                        }`}
-                      >
-                        ⚡ Live Code Synthesis
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('search')}
-                        className={`px-3 py-1 rounded-lg text-[11.5px] font-mono font-medium transition-all cursor-pointer ${
-                          activeTab === 'search'
-                            ? 'bg-[#1e293b] text-[#60a5fa] border border-[#3b82f6]/30'
-                            : 'text-[#64748b] hover:text-[#cbd5e1]'
-                        }`}
-                      >
-                        🔍 Search Diagnostics {searchData && '●'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('database')}
-                        className={`px-3 py-1 rounded-lg text-[11.5px] font-mono font-medium transition-all cursor-pointer ${
-                          activeTab === 'database'
-                            ? 'bg-[#1e293b] text-[#60a5fa] border border-[#3b82f6]/30'
-                            : 'text-[#64748b] hover:text-[#cbd5e1]'
-                        }`}
-                      >
-                        🗄️ Database Inspector ({dbData.fixed_chunks?.length || 0})
-                      </button>
                     </div>
-
-                    <span className="text-[10px] font-mono text-[#475569]">
-                      Streaming Gateway
-                    </span>
-                  </div>
-
-                  {/* Tab Content Container */}
-                  <div className="flex-1 p-4 overflow-y-auto custom-scrollbar bg-[#08090a]">
-                    
-                    {/* 1. Terminal Generation Tab */}
-                    {activeTab === 'terminal' && (
-                      <div ref={outputRef} className="h-full overflow-y-auto custom-scrollbar">
-                        {generation ? (
-                          <FormattedMarkdown content={generation} />
-                        ) : loading ? (
-                          <div className="flex flex-col items-center justify-center h-full text-[#64748b] font-mono text-[12px] space-y-2">
-                            <span className="animate-spin text-[20px] text-[#3b82f6]">⚡</span>
-                            <span>Executing Dual-Stream Hybrid Search & Re-Ranking...</span>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center h-full text-[#475569] font-mono text-[12px] space-y-2">
-                            <span className="text-[24px]">💬</span>
-                            <span>Awaiting query execution. Enter a prompt and click execute.</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* 2. Search Diagnostics Tab */}
-                    {activeTab === 'search' && (
-                      <div className="space-y-4">
-                        {searchData ? (
-                          <>
-                            {/* BM25 Lexical Results */}
-                            <div className={`border rounded-xl p-3.5 transition-all ${
-                              highlightStrategy === 'bm25' ? 'border-[#3b82f6] bg-[#3b82f6]/5 shadow-lg' : 'border-[#1a1e26] bg-[#0c0e12]'
-                            }`}>
-                              <div className="flex justify-between items-center mb-2.5">
-                                <span className="text-[11.5px] font-mono font-bold text-[#60a5fa]">
-                                  Stage 1: Okapi BM25 Lexical Candidates
-                                </span>
-                                <span className="text-[10px] font-mono text-[#64748b]">
-                                  Exact keyword matches
-                                </span>
-                              </div>
-                              <div className="space-y-2">
-                                {searchData.bm25.map((item, i) => (
-                                  <div key={i} className="p-2.5 rounded bg-[#08090a] border border-[#161922] text-[11.5px] font-mono text-[#94a3b8]">
-                                    <div className="flex justify-between text-[#64748b] text-[10px] mb-1 font-bold">
-                                      <span>Rank #{item.rank}</span>
-                                      <span className="text-[#38bdf8]">{item.score}</span>
-                                    </div>
-                                    <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-[#cbd5e1]">{item.text}</pre>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* Dense Vector Results */}
-                            <div className={`border rounded-xl p-3.5 transition-all ${
-                              highlightStrategy === 'dense' ? 'border-[#3b82f6] bg-[#3b82f6]/5 shadow-lg' : 'border-[#1a1e26] bg-[#0c0e12]'
-                            }`}>
-                              <div className="flex justify-between items-center mb-2.5">
-                                <span className="text-[11.5px] font-mono font-bold text-[#a78bfa]">
-                                  Stage 2: BGE-small Dense Vector Proximity (ChromaDB)
-                                </span>
-                                <span className="text-[10px] font-mono text-[#64748b]">
-                                  384-dimensional cosine proximity
-                                </span>
-                              </div>
-                              <div className="space-y-2">
-                                {searchData.dense.map((item, i) => (
-                                  <div key={i} className="p-2.5 rounded bg-[#08090a] border border-[#161922] text-[11.5px] font-mono text-[#94a3b8]">
-                                    <div className="flex justify-between text-[#64748b] text-[10px] mb-1 font-bold">
-                                      <span>Rank #{item.rank}</span>
-                                      <span className="text-[#a78bfa]">{item.score}</span>
-                                    </div>
-                                    <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-[#cbd5e1]">{item.text}</pre>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* MS-Marco Cross-Encoder Results */}
-                            <div className={`border rounded-xl p-3.5 transition-all ${
-                              highlightStrategy === 'cross_encoder' ? 'border-[#10b981] bg-[#10b981]/5 shadow-lg' : 'border-[#1a1e26] bg-[#0c0e12]'
-                            }`}>
-                              <div className="flex justify-between items-center mb-2.5">
-                                <span className="text-[11.5px] font-mono font-bold text-[#34d399]">
-                                  Stage 3: MS-Marco Cross-Encoder Deep Re-Ranking
-                                </span>
-                                <span className="text-[10px] font-mono text-[#10b981] font-bold">
-                                  Top Context Injected into LLM
-                                </span>
-                              </div>
-                              <div className="space-y-2">
-                                {searchData.cross_encoder.map((item, i) => (
-                                  <div key={i} className="p-2.5 rounded bg-[#08090a] border border-[#10b981]/20 text-[11.5px] font-mono text-[#94a3b8]">
-                                    <div className="flex justify-between text-[#64748b] text-[10px] mb-1 font-bold">
-                                      <span className="text-[#34d399]">Top Rank #{item.rank}</span>
-                                      <span className="text-[#34d399] font-bold">{item.score}</span>
-                                    </div>
-                                    <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-[#cbd5e1]">{item.text}</pre>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center h-full text-[#475569] font-mono text-[12px] space-y-2 py-16">
-                            <span>🔍 No search executed yet. Run a query to view stage diagnostics.</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* 3. Database Inspector Tab */}
-                    {activeTab === 'database' && (
-                      <div className="space-y-3">
-                        <div className="text-[11px] font-mono text-[#64748b] uppercase tracking-wider mb-2 font-semibold">
-                          Total Chunks Ingested: {dbData.fixed_chunks?.length || 0}
-                        </div>
-                        <div className="space-y-2">
-                          {(dbData.fixed_chunks || []).map((chunk, i) => (
-                            <div key={i} className="p-3 rounded-lg bg-[#0c0e12] border border-[#1a1e26] text-[11.5px] font-mono text-[#94a3b8]">
-                              <div className="text-[10px] text-[#60a5fa] font-bold mb-1">
-                                Chunk #{i + 1}
-                              </div>
-                              <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-[#cbd5e1]">{chunk}</pre>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
                   </div>
                 </div>
-              </div>
+              )}
+
+              {/* Tab 2: 3-Column Search Diagnostics */}
+              {activeTab === 'search' && (
+                <div className="p-6">
+                  {!searchData ? (
+                    <div className="text-center py-20 text-[#282e3a] font-mono text-xs">
+                      Run a query to inspect live ranking diagnostics across BM25, Dense Vectors, and Cross-Encoder.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                      
+                      {/* BM25 Column */}
+                      <div className={`bg-[#08090a] rounded-lg flex flex-col transition-all duration-500 border ${
+                        highlightStrategy === 'bm25'
+                          ? 'border-[#3b82f6] shadow-[0_0_30px_rgba(59,130,246,0.2)] ring-1 ring-[#3b82f6]/50'
+                          : 'border-[#1a1e26] hover:border-[#282e3a]'
+                      }`}>
+                        <div className="border-b border-[#1a1e26] px-4 py-3.5 flex justify-between items-center bg-[#0a0c10]">
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-mono text-[#3b82f6] font-bold">01</span>
+                              <h3 className="text-[12px] font-mono font-semibold text-[#c8ccd0] tracking-wide">Okapi BM25</h3>
+                            </div>
+                            <p className="text-[10px] text-[#4a5060] mt-0.5 font-mono">Lexical keyword matching</p>
+                          </div>
+                          <span className="text-[9px] font-mono font-medium tracking-[0.15em] text-[#4a5060] bg-[#12151c] px-2 py-0.5 rounded border border-[#1a1e26]">TOP 5</span>
+                        </div>
+                        <div className="p-3 flex-1 overflow-y-auto h-[440px] space-y-2.5 custom-scrollbar">
+                          {Array.isArray(searchData.bm25) ? searchData.bm25.map((item: any, i: number) => (
+                            <div key={i} className="bg-[#0e1015] border border-[#1a1e26] rounded-md p-3.5 hover:border-[#282e3a] transition-colors duration-300">
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="text-[9px] font-mono font-bold text-[#6b7280] bg-[#08090a] px-1.5 py-0.5 rounded">#{item.rank}</span>
+                                <span className="text-[10px] font-mono font-medium text-[#38bdf8]">{item.score}</span>
+                              </div>
+                              <pre className="text-[11.5px] text-[#6b7280] font-mono whitespace-pre-wrap leading-[1.6]">{item.text}</pre>
+                            </div>
+                          )) : <div className="text-[#4a5060] text-xs font-mono p-3">{typeof searchData.bm25 === 'string' ? searchData.bm25 : 'No results'}</div>}
+                        </div>
+                      </div>
+
+                      {/* Dense Vector Column */}
+                      <div className={`bg-[#08090a] rounded-lg flex flex-col transition-all duration-500 border ${
+                        highlightStrategy === 'dense'
+                          ? 'border-[#a78bfa] shadow-[0_0_30px_rgba(167,139,250,0.2)] ring-1 ring-[#a78bfa]/50'
+                          : 'border-[#1a1e26] hover:border-[#282e3a]'
+                      }`}>
+                        <div className="border-b border-[#1a1e26] px-4 py-3.5 flex justify-between items-center bg-[#0a0c10]">
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-mono text-[#a78bfa] font-bold">02</span>
+                              <h3 className="text-[12px] font-mono font-semibold text-[#c8ccd0] tracking-wide">Dense Vectors</h3>
+                            </div>
+                            <p className="text-[10px] text-[#4a5060] mt-0.5 font-mono">BGE-small (ChromaDB)</p>
+                          </div>
+                          <span className="text-[9px] font-mono font-medium tracking-[0.15em] text-[#4a5060] bg-[#12151c] px-2 py-0.5 rounded border border-[#1a1e26]">TOP 5</span>
+                        </div>
+                        <div className="p-3 flex-1 overflow-y-auto h-[440px] space-y-2.5 custom-scrollbar">
+                          {Array.isArray(searchData.dense) ? searchData.dense.map((item: any, i: number) => (
+                            <div key={i} className="bg-[#0e1015] border border-[#1a1e26] rounded-md p-3.5 hover:border-[#282e3a] transition-colors duration-300">
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="text-[9px] font-mono font-bold text-[#6b7280] bg-[#08090a] px-1.5 py-0.5 rounded">#{item.rank}</span>
+                                <span className="text-[10px] font-mono font-medium text-purple-400/80">{item.score}</span>
+                              </div>
+                              <pre className="text-[11.5px] text-[#6b7280] font-mono whitespace-pre-wrap leading-[1.6]">{item.text}</pre>
+                            </div>
+                          )) : <div className="text-[#4a5060] text-xs font-mono p-3">{typeof searchData.dense === 'string' ? searchData.dense : 'No results'}</div>}
+                        </div>
+                      </div>
+
+                      {/* Cross-Encoder Column */}
+                      <div className={`bg-[#08090a] rounded-lg flex flex-col relative overflow-hidden transition-all duration-500 border ${
+                        highlightStrategy === 'cross_encoder'
+                          ? 'border-[#10b981] shadow-[0_0_30px_rgba(16,185,129,0.2)] ring-1 ring-[#10b981]/50'
+                          : 'border-[#10b981]/20 hover:border-[#10b981]/35'
+                      }`}>
+                        <div className="absolute top-0 right-0 text-[8px] font-mono font-bold px-2.5 py-1 text-[#10b981] bg-[#10b981]/10 border-b border-l border-[#10b981]/20 rounded-bl-md tracking-[0.15em] uppercase">
+                          Winner
+                        </div>
+                        <div className="border-b border-[#10b981]/15 px-4 py-3.5 flex justify-between items-center bg-[#10b981]/5">
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-mono text-[#10b981] font-bold">03</span>
+                              <h3 className="text-[12px] font-mono font-semibold text-[#10b981] tracking-wide">Cross-Encoder</h3>
+                            </div>
+                            <p className="text-[10px] text-[#10b981]/60 mt-0.5 font-mono">MS-Marco Deep Re-Ranking</p>
+                          </div>
+                          <span className="text-[9px] font-mono font-medium tracking-[0.15em] text-[#10b981]/60 bg-[#10b981]/10 px-2 py-0.5 rounded border border-[#10b981]/20 mr-12">TOP 5</span>
+                        </div>
+                        <div className="p-3 flex-1 overflow-y-auto h-[440px] space-y-2.5 custom-scrollbar">
+                          {Array.isArray(searchData.cross_encoder) ? searchData.cross_encoder.map((item: any, i: number) => (
+                            <div key={i} className={`bg-[#0e1015] border rounded-md p-3.5 transition-all duration-300 ${i === 0 ? 'border-[#10b981]/30 shadow-[0_0_12px_rgba(16,185,129,0.06)]' : 'border-[#1a1e26] hover:border-[#282e3a]'}`}>
+                              <div className="flex justify-between items-center mb-2">
+                                <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${i === 0 ? 'text-[#10b981] bg-[#10b981]/10 border border-[#10b981]/20' : 'text-[#6b7280] bg-[#08090a]'}`}>#{item.rank}</span>
+                                <span className={`text-[10px] font-mono font-medium ${i === 0 ? 'text-[#10b981]' : 'text-[#10b981]/50'}`}>{item.score}</span>
+                              </div>
+                              <pre className="text-[11.5px] text-[#8b92a0] font-mono whitespace-pre-wrap leading-[1.6]">{item.text}</pre>
+                            </div>
+                          )) : <div className="text-[#4a5060] text-xs font-mono p-3">{typeof searchData.cross_encoder === 'string' ? searchData.cross_encoder : 'No results'}</div>}
+                        </div>
+                      </div>
+
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tab 3: Knowledge Base Viewer */}
+              {activeTab === 'db' && (
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-1 h-4 bg-[#282e3a] rounded-full" />
+                          <h3 className="text-[13px] font-mono font-medium text-[#6b7280] tracking-wide">Legacy Fixed Chunks</h3>
+                        </div>
+                        <span className="text-[9px] font-mono font-medium tracking-[0.15em] text-[#4a5060] bg-[#13161c] px-2.5 py-1 rounded uppercase border border-[#1a1e26]">Static</span>
+                      </div>
+                      <div className="bg-[#08090a] border border-[#1a1e26] rounded-lg p-4 h-[420px] overflow-y-auto space-y-2.5 custom-scrollbar">
+                        {dbData?.fixed_chunks?.map((chunk: string, i: number) => (
+                          <div key={i} className="p-3.5 bg-[#0e1015] rounded-md border border-[#1a1e26] font-mono text-[12px] text-[#6b7280] leading-[1.7] hover:border-[#282e3a] transition-colors duration-300 cursor-default">
+                            {chunk}
+                          </div>
+                        )) || (
+                          <div className="flex items-center justify-center h-full">
+                            <span className="text-[#282e3a] font-mono text-xs">Awaiting data snapshot…</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-1 h-4 bg-[#3b82f6]/50 rounded-full" />
+                          <h3 className="text-[13px] font-mono font-medium text-[#6b7280] tracking-wide">Semantic Vector Chunks</h3>
+                        </div>
+                        <span className="text-[9px] font-mono font-medium tracking-[0.15em] text-[#3b82f6]/70 bg-[#3b82f6]/10 px-2.5 py-1 rounded uppercase border border-[#3b82f6]/20">Smart Chunks</span>
+                      </div>
+                      <div className="bg-[#08090a] border border-[#1a1e26] rounded-lg p-4 h-[420px] overflow-y-auto space-y-2.5 custom-scrollbar">
+                        {dbData?.semantic_chunks?.map((chunk: string, i: number) => (
+                          <div key={i} className="p-3.5 bg-[#0e1015] rounded-md border border-[#1a1e26] font-mono text-[12px] text-[#8b92a0] leading-[1.7] hover:border-[#3b82f6]/20 transition-colors duration-300 whitespace-pre-wrap cursor-default">
+                            {chunk}
+                          </div>
+                        )) || (
+                          <div className="flex items-center justify-center h-full">
+                            <span className="text-[#282e3a] font-mono text-xs">Awaiting data snapshot…</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Footer */}
+            <div className="mt-8 flex justify-between items-center text-[10px] font-mono text-[#282e3a]">
+              <span>v0.9.0-hybrid-rag</span>
+              <span>Enterprise API Copilot • Multi-Strategy Diagnostic Portal</span>
             </div>
           </div>
         </main>
-      )}
-
-      {/* -- Document Upload Modal ----------------------------------- */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0c0e12] border border-[#1a1e26] rounded-xl max-w-[650px] w-full p-6 shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-[#1a1e26] pb-3">
-              <h3 className="text-[14px] font-mono font-bold text-[#e2e5ea]">
-                API Specification Ingestion Summary
-              </h3>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-[#64748b] hover:text-[#cbd5e1] text-[14px] p-1 cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-            <p className="text-[12px] font-mono text-[#8b949e]">
-              Parsed and indexed {uploadChunks.length} segments into ChromaDB & BM25 lexical index.
-            </p>
-            <div className="max-h-[300px] overflow-y-auto space-y-2 custom-scrollbar p-2 bg-[#08090a] rounded-lg border border-[#161922]">
-              {uploadChunks.map((chunk, i) => (
-                <div key={i} className="p-2 rounded bg-[#0c0e12] border border-[#1a1e26] text-[10.5px] font-mono text-[#cbd5e1] whitespace-pre-wrap">
-                  {chunk}
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={() => setShowModal(false)}
-                className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-1.5 rounded-lg text-[12px] font-mono font-semibold cursor-pointer"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

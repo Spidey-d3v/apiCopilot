@@ -217,11 +217,61 @@ Provide production-ready code examples (e.g. cURL, Python, TypeScript) with corr
 
 # ── Workspace File Explorer & IDE Endpoints ───────────────────────────────
 
+ACTIVE_WORKSPACE_ROOT = WORKSPACE_ROOT
+RECENT_PROJECTS: List[str] = [
+    str(WORKSPACE_ROOT).replace("\\", "/"),
+    "C:/Users/gaura",
+    "D:/AIDeV"
+]
+
+class OpenProjectRequest(BaseModel):
+    path: str
+
+def normalize_workspace_path(p_str: str) -> Path:
+    cleaned = p_str.strip().replace("\\", "/")
+    if len(cleaned) >= 2 and cleaned[1] == ":":
+        drive = cleaned[0].lower()
+        rest = cleaned[2:].lstrip("/")
+        if os.name != 'nt' and os.path.exists(f"/mnt/{drive}"):
+            return Path(f"/mnt/{drive}/{rest}").resolve()
+    return Path(cleaned).resolve()
+
+@app.get("/api/workspace/projects")
+def get_workspace_projects():
+    """Returns current active project and recent projects list."""
+    global ACTIVE_WORKSPACE_ROOT, RECENT_PROJECTS
+    return {
+        "current_project": ACTIVE_WORKSPACE_ROOT.name,
+        "project_path": str(ACTIVE_WORKSPACE_ROOT).replace("\\", "/"),
+        "recent_projects": list(dict.fromkeys(RECENT_PROJECTS))[:10]
+    }
+
+@app.post("/api/workspace/open-project")
+def open_workspace_project(req: OpenProjectRequest):
+    """Opens any folder / directory on the host as the active IDE project root."""
+    global ACTIVE_WORKSPACE_ROOT, RECENT_PROJECTS
+    target_path = normalize_workspace_path(req.path)
+    if not target_path.exists() or not target_path.is_dir():
+        raise HTTPException(status_code=400, detail=f"Directory not found: {req.path}")
+    
+    ACTIVE_WORKSPACE_ROOT = target_path
+    normalized_path = str(target_path).replace("\\", "/")
+    if normalized_path not in RECENT_PROJECTS:
+        RECENT_PROJECTS.insert(0, normalized_path)
+
+    return {
+        "status": "success",
+        "current_project": target_path.name,
+        "project_path": normalized_path,
+        "recent_projects": list(dict.fromkeys(RECENT_PROJECTS))[:10]
+    }
+
 @app.get("/api/workspace/tree")
 def get_workspace_tree(subpath: str = ""):
-    """Returns a recursive file & folder tree of the project workspace."""
-    target_dir = (WORKSPACE_ROOT / subpath).resolve()
-    if not str(target_dir).startswith(str(WORKSPACE_ROOT)):
+    """Returns a recursive file & folder tree of the active project workspace."""
+    global ACTIVE_WORKSPACE_ROOT
+    target_dir = (ACTIVE_WORKSPACE_ROOT / subpath).resolve()
+    if not str(target_dir).startswith(str(ACTIVE_WORKSPACE_ROOT)):
         raise HTTPException(status_code=403, detail="Access denied")
     
     def build_tree(dir_path: Path):
@@ -232,7 +282,7 @@ def get_workspace_tree(subpath: str = ""):
                 if entry in IGNORED_DIRS or entry.startswith("."):
                     continue
                 full_path = dir_path / entry
-                rel_path = str(full_path.relative_to(WORKSPACE_ROOT)).replace("\\", "/")
+                rel_path = str(full_path.relative_to(ACTIVE_WORKSPACE_ROOT)).replace("\\", "/")
                 if full_path.is_dir():
                     items.append({
                         "name": entry,
@@ -254,15 +304,17 @@ def get_workspace_tree(subpath: str = ""):
         return items
 
     return {
-        "root": str(WORKSPACE_ROOT.name),
+        "root": str(ACTIVE_WORKSPACE_ROOT.name),
+        "root_path": str(ACTIVE_WORKSPACE_ROOT).replace("\\", "/"),
         "tree": build_tree(target_dir)
     }
 
 @app.get("/api/workspace/file")
 def read_workspace_file(path: str):
     """Reads the raw text content of a workspace file."""
-    target_file = (WORKSPACE_ROOT / path).resolve()
-    if not str(target_file).startswith(str(WORKSPACE_ROOT)) or not target_file.is_file():
+    global ACTIVE_WORKSPACE_ROOT
+    target_file = (ACTIVE_WORKSPACE_ROOT / path).resolve()
+    if not str(target_file).startswith(str(ACTIVE_WORKSPACE_ROOT)) or not target_file.is_file():
         raise HTTPException(status_code=404, detail="File not found")
     try:
         with open(target_file, "r", encoding="utf-8", errors="replace") as f:
@@ -274,8 +326,9 @@ def read_workspace_file(path: str):
 @app.post("/api/workspace/file")
 def save_workspace_file(req: FileContentRequest):
     """Saves updated text content to a workspace file."""
-    target_file = (WORKSPACE_ROOT / req.path).resolve()
-    if not str(target_file).startswith(str(WORKSPACE_ROOT)):
+    global ACTIVE_WORKSPACE_ROOT
+    target_file = (ACTIVE_WORKSPACE_ROOT / req.path).resolve()
+    if not str(target_file).startswith(str(ACTIVE_WORKSPACE_ROOT)):
         raise HTTPException(status_code=403, detail="Access denied")
     try:
         target_file.parent.mkdir(parents=True, exist_ok=True)
@@ -288,8 +341,9 @@ def save_workspace_file(req: FileContentRequest):
 @app.post("/api/workspace/create")
 def create_workspace_item(req: CreateFileRequest):
     """Creates a new file or directory in the workspace."""
-    target_path = (WORKSPACE_ROOT / req.path).resolve()
-    if not str(target_path).startswith(str(WORKSPACE_ROOT)):
+    global ACTIVE_WORKSPACE_ROOT
+    target_path = (ACTIVE_WORKSPACE_ROOT / req.path).resolve()
+    if not str(target_path).startswith(str(ACTIVE_WORKSPACE_ROOT)):
         raise HTTPException(status_code=403, detail="Access denied")
     try:
         if req.is_directory:
