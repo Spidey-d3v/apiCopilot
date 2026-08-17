@@ -7,6 +7,7 @@ from pathlib import Path
 import httpx
 import json as json_module
 import os
+import asyncio
 
 from .config import RAG_SERVICE_URL, INGESTION_SERVICE_URL, OLLAMA_URL, DEFAULT_MODEL
 
@@ -226,6 +227,12 @@ RECENT_PROJECTS: List[str] = [
 
 class OpenProjectRequest(BaseModel):
     path: str
+    create_if_missing: Optional[bool] = False
+
+class TerminalExecRequest(BaseModel):
+    command: str
+    cwd: Optional[str] = None
+    terminal_id: Optional[str] = "term-1"
 
 def normalize_workspace_path(p_str: str) -> Path:
     cleaned = p_str.strip().replace("\\", "/")
@@ -248,11 +255,20 @@ def get_workspace_projects():
 
 @app.post("/api/workspace/open-project")
 def open_workspace_project(req: OpenProjectRequest):
-    """Opens any folder / directory on the host as the active IDE project root."""
+    """Opens any folder / directory on the host as the active IDE project root, creating if requested."""
     global ACTIVE_WORKSPACE_ROOT, RECENT_PROJECTS
     target_path = normalize_workspace_path(req.path)
-    if not target_path.exists() or not target_path.is_dir():
-        raise HTTPException(status_code=400, detail=f"Directory not found: {req.path}")
+    
+    if not target_path.exists():
+        if req.create_if_missing:
+            target_path.mkdir(parents=True, exist_ok=True)
+            readme_file = target_path / "README.md"
+            if not readme_file.exists():
+                readme_file.write_text(f"# {target_path.name}\n\nInitialized with Archon Copilot.\n", encoding="utf-8")
+        else:
+            raise HTTPException(status_code=400, detail=f"Directory not found: {req.path}")
+    elif not target_path.is_dir():
+        raise HTTPException(status_code=400, detail=f"Path is not a directory: {req.path}")
     
     ACTIVE_WORKSPACE_ROOT = target_path
     normalized_path = str(target_path).replace("\\", "/")
@@ -265,6 +281,85 @@ def open_workspace_project(req: OpenProjectRequest):
         "project_path": normalized_path,
         "recent_projects": list(dict.fromkeys(RECENT_PROJECTS))[:10]
     }
+
+@app.post("/api/terminal/exec")
+async def terminal_exec(req: TerminalExecRequest):
+    """Executes a real shell command in the active workspace directory context."""
+    global ACTIVE_WORKSPACE_ROOT
+    raw_cmd = req.command.strip()
+    cwd_str = str(ACTIVE_WORKSPACE_ROOT).replace("\\", "/")
+    
+    if not raw_cmd:
+        return {"stdout": "", "stderr": "", "exit_code": 0, "cwd": cwd_str}
+    
+    # Handle 'cd <dir>' command
+    if raw_cmd == "cd" or raw_cmd.startswith("cd "):
+        parts = raw_cmd.split(maxsplit=1)
+        target_dir_str = parts[1].strip() if len(parts) > 1 else "~"
+        if target_dir_str == "~":
+            new_dir = Path.home()
+        elif target_dir_str.startswith("/"):
+            new_dir = Path(target_dir_str).resolve()
+        else:
+            new_dir = (ACTIVE_WORKSPACE_ROOT / target_dir_str).resolve()
+        
+        if new_dir.exists() and new_dir.is_dir():
+            ACTIVE_WORKSPACE_ROOT = new_dir
+            new_cwd = str(new_dir).replace("\\", "/")
+            if new_cwd not in RECENT_PROJECTS:
+                RECENT_PROJECTS.insert(0, new_cwd)
+            return {
+                "stdout": f"Changed working directory to {new_dir}\n",
+                "stderr": "",
+                "exit_code": 0,
+                "cwd": new_cwd,
+                "project_name": new_dir.name
+            }
+        else:
+            return {
+                "stdout": "",
+                "stderr": f"cd: no such file or directory: {target_dir_str}\n",
+                "exit_code": 1,
+                "cwd": cwd_str
+            }
+    
+    # Execute command in shell
+    try:
+        shell_cmd = ["bash", "-c", raw_cmd] if os.name != "nt" else ["cmd.exe", "/c", raw_cmd]
+        process = await asyncio.create_subprocess_exec(
+            *shell_cmd,
+            cwd=str(ACTIVE_WORKSPACE_ROOT),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        try:
+            stdout_bytes, stderr_bytes = await asyncio.wait_for(process.communicate(), timeout=45.0)
+            stdout_str = stdout_bytes.decode("utf-8", errors="replace")
+            stderr_str = stderr_bytes.decode("utf-8", errors="replace")
+            return {
+                "stdout": stdout_str,
+                "stderr": stderr_str,
+                "exit_code": process.returncode if process.returncode is not None else 0,
+                "cwd": str(ACTIVE_WORKSPACE_ROOT).replace("\\", "/")
+            }
+        except asyncio.TimeoutError:
+            try:
+                process.kill()
+            except Exception:
+                pass
+            return {
+                "stdout": "",
+                "stderr": "Command execution timed out (45s limit)\n",
+                "exit_code": 124,
+                "cwd": cwd_str
+            }
+    except Exception as e:
+        return {
+            "stdout": "",
+            "stderr": f"Execution error: {str(e)}\n",
+            "exit_code": 1,
+            "cwd": cwd_str
+        }
 
 @app.get("/api/workspace/tree")
 def get_workspace_tree(subpath: str = ""):

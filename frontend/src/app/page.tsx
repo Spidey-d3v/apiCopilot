@@ -28,6 +28,12 @@ const Icons = {
       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
     </svg>
   ),
+  Terminal: () => (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="4 17 10 11 4 5" />
+      <line x1="12" y1="19" x2="20" y2="19" />
+    </svg>
+  ),
   FolderOpen: () => (
     <svg className="w-3.5 h-3.5 text-[#e2b86b] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
@@ -78,6 +84,12 @@ const Icons = {
     <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="18" y1="6" x2="6" y2="18" />
       <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  ),
+  Plus: () => (
+    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
   ),
   User: () => (
@@ -468,6 +480,62 @@ function FileTreeNode({
   );
 }
 
+/* -- Syntax Highlighting Engine (Token-level for VS Code vibe) -- */
+function highlightCodeLine(line: string) {
+  if (!line) return <span>&nbsp;</span>;
+  
+  // Quick token matcher for JS/TS/Python
+  const tokens: React.ReactNode[] = [];
+  const regex = /(\/\/.*$|#.*$|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`|\b(?:def|function|const|let|var|class|import|from|export|return|if|else|elif|for|while|try|except|catch|finally|async|await|type|interface|extends|implements|new|this|self|null|undefined|true|false|None|True|False)\b|\b(?:print|console|log|require|fetch|len|range|str|int|dict|list|set|open|useState|useEffect|useRef)\b|\b[a-zA-Z_$][a-zA-Z0-9_$]*(?=\s*\()|\b\d+\.?\d*\b|[{}()\[\].,;+\-*\/=<>!&|?:%])/g;
+  
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(line)) !== null) {
+    if (match.index > lastIndex) {
+      tokens.push(<span key={lastIndex} className="text-[#c9d1d9]">{line.substring(lastIndex, match.index)}</span>);
+    }
+
+    const token = match[0];
+    if (token.startsWith('//') || token.startsWith('#')) {
+      tokens.push(<span key={match.index} className="text-[#6a737d] italic">{token}</span>);
+    } else if (token.startsWith('"') || token.startsWith("'") || token.startsWith('`')) {
+      tokens.push(<span key={match.index} className="text-[#9ece6a]">{token}</span>);
+    } else if (/^\b(?:def|function|const|let|var|class|import|from|export|return|if|else|elif|for|while|try|except|catch|finally|async|await|type|interface|extends|implements|new)\b$/.test(token)) {
+      tokens.push(<span key={match.index} className="text-[#bb9af7] font-semibold">{token}</span>);
+    } else if (/^\b(?:this|self|null|undefined|true|false|None|True|False)\b$/.test(token)) {
+      tokens.push(<span key={match.index} className="text-[#ff9e64]">{token}</span>);
+    } else if (/^\b(?:print|console|log|require|fetch|len|range|str|int|dict|list|set|open|useState|useEffect|useRef)\b$/.test(token)) {
+      tokens.push(<span key={match.index} className="text-[#7dcfff]">{token}</span>);
+    } else if (/^\d+\.?\d*$/.test(token)) {
+      tokens.push(<span key={match.index} className="text-[#ff9e64]">{token}</span>);
+    } else if (/^[{}()\[\].,;+\-*\/=<>!&|?:%]$/.test(token)) {
+      tokens.push(<span key={match.index} className="text-[#89ddff]">{token}</span>);
+    } else {
+      tokens.push(<span key={match.index} className="text-[#7aa2f7]">{token}</span>);
+    }
+
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < line.length) {
+    tokens.push(<span key={lastIndex} className="text-[#c9d1d9]">{line.substring(lastIndex)}</span>);
+  }
+
+  return tokens;
+}
+
+/* -- Interactive Multi-Tab Terminal State --------------------- */
+interface TerminalTab {
+  id: string;
+  name: string;
+  history: Array<{ type: 'input' | 'stdout' | 'stderr' | 'system'; text: string }>;
+  commandHistory: string[];
+  historyIndex: number;
+  input: string;
+  cwd: string;
+}
+
 /* -- VS Code Style Archon Agent IDE Workspace ---------------- */
 function VSCodeAgentIDE({
   apiBase,
@@ -486,6 +554,7 @@ function VSCodeAgentIDE({
   const [recentProjects, setRecentProjects] = useState<string[]>(['D:/AIDeV', 'C:/Users/gaura']);
   const [showOpenProjectModal, setShowOpenProjectModal] = useState(false);
   const [projectPathInput, setProjectPathInput] = useState('');
+  const [createIfMissing, setCreateIfMissing] = useState(false);
   
   // File Explorer State
   const [workspaceTree, setWorkspaceTree] = useState<TreeNode[]>([]);
@@ -499,14 +568,31 @@ function VSCodeAgentIDE({
   const [isDirty, setIsDirty] = useState<boolean>(false);
   const [cursorPos, setCursorPos] = useState({ line: 1, col: 1 });
   const [saveStatus, setSaveStatus] = useState<string>('');
+  const [foldedLines, setFoldedLines] = useState<Record<number, boolean>>({});
+  
+  // Layout & Activity State
   const [activeActivity, setActiveActivity] = useState<'explorer' | 'search' | 'copilot' | 'diagnostics'>('explorer');
   const [showBottomPanel, setShowBottomPanel] = useState<boolean>(true);
-  const [bottomTab, setBottomTab] = useState<'output' | 'terminal' | 'diagnostics'>('output');
-  const [terminalLogs, setTerminalLogs] = useState<string[]>([
-    "[System] Archon Agent IDE workspace initialized.",
-    "[System] Microservices Mesh connected on " + apiBase,
-    "[GPU] Model loaded: " + selectedModel
+  const [bottomTab, setBottomTab] = useState<'terminal' | 'output' | 'diagnostics'>('terminal');
+
+  // Interactive Multi-Terminal State
+  const [terminals, setTerminals] = useState<TerminalTab[]>([
+    {
+      id: 'term-1',
+      name: 'bash 1',
+      history: [
+        { type: 'system', text: 'Archon Interactive Shell initialized. Type any command (e.g. ls, git status, npm test, python)...' }
+      ],
+      commandHistory: [],
+      historyIndex: -1,
+      input: '',
+      cwd: 'D:/AIDeV'
+    }
   ]);
+  const [activeTermId, setActiveTermId] = useState('term-1');
+  const [executingCmd, setExecutingCmd] = useState(false);
+  const termScrollRef = useRef<HTMLDivElement>(null);
+  const termInputRef = useRef<HTMLInputElement>(null);
 
   // Archon Agent Multi-Turn Chat State
   const [agentMessages, setAgentMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([
@@ -532,6 +618,7 @@ function VSCodeAgentIDE({
         setCurrentProjectName(projData.current_project || 'AIDeV');
         setCurrentProjectPath(projData.project_path || 'D:/AIDeV');
         setRecentProjects(projData.recent_projects || ['D:/AIDeV']);
+        setTerminals(prev => prev.map(t => ({ ...t, cwd: projData.project_path || t.cwd })));
       }
 
       const treeRes = await fetch(`${apiBase}/api/workspace/tree`);
@@ -549,14 +636,14 @@ function VSCodeAgentIDE({
     fetchProjectsAndTree();
   }, [apiBase]);
 
-  // Open Any Custom Folder / Project
-  const handleOpenProject = async (targetPath: string) => {
+  // Open Any Custom Folder / Project (with create_if_missing)
+  const handleOpenProject = async (targetPath: string, shouldCreate: boolean = false) => {
     if (!targetPath.trim()) return;
     try {
       const res = await fetch(`${apiBase}/api/workspace/open-project`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: targetPath.trim() })
+        body: JSON.stringify({ path: targetPath.trim(), create_if_missing: shouldCreate })
       });
       if (res.ok) {
         const data = await res.json();
@@ -567,7 +654,9 @@ function VSCodeAgentIDE({
         setOpenTabs([]);
         setActiveTabPath('');
         setEditorContent('');
-        setTerminalLogs(prev => [...prev, `[Project Switch] Opened project folder: ${data.project_path}`]);
+        setFoldedLines({});
+        setTerminals(prev => prev.map(t => ({ ...t, cwd: data.project_path })));
+        
         // Refresh Tree
         const treeRes = await fetch(`${apiBase}/api/workspace/tree`);
         if (treeRes.ok) {
@@ -582,6 +671,153 @@ function VSCodeAgentIDE({
       alert("Failed to connect to workspace service.");
     }
   };
+
+  // Terminal: Add new terminal tab
+  const handleAddTerminal = () => {
+    const nextNum = terminals.length + 1;
+    const newId = `term-${Date.now()}`;
+    const newTerm: TerminalTab = {
+      id: newId,
+      name: `bash ${nextNum}`,
+      history: [
+        { type: 'system', text: `Session bash ${nextNum} started in ${currentProjectPath}` }
+      ],
+      commandHistory: [],
+      historyIndex: -1,
+      input: '',
+      cwd: currentProjectPath
+    };
+    setTerminals(prev => [...prev, newTerm]);
+    setActiveTermId(newId);
+  };
+
+  // Terminal: Close terminal tab
+  const handleCloseTerminal = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (terminals.length <= 1) return;
+    const remaining = terminals.filter(t => t.id !== id);
+    setTerminals(remaining);
+    if (activeTermId === id) {
+      setActiveTermId(remaining[remaining.length - 1].id);
+    }
+  };
+
+  // Terminal: Run command
+  const handleRunTerminalCommand = async () => {
+    const currentTerm = terminals.find(t => t.id === activeTermId);
+    if (!currentTerm) return;
+    const rawCmd = currentTerm.input.trim();
+    if (!rawCmd || executingCmd) return;
+
+    // Handle clear
+    if (rawCmd === 'clear') {
+      setTerminals(prev => prev.map(t => t.id === activeTermId ? {
+        ...t,
+        history: [],
+        commandHistory: [...t.commandHistory, rawCmd],
+        historyIndex: -1,
+        input: ''
+      } : t));
+      return;
+    }
+
+    const nextHistory = [
+      ...currentTerm.history,
+      { type: 'input' as const, text: `$ ${rawCmd}` }
+    ];
+
+    setTerminals(prev => prev.map(t => t.id === activeTermId ? {
+      ...t,
+      history: nextHistory,
+      commandHistory: [...t.commandHistory, rawCmd],
+      historyIndex: -1,
+      input: ''
+    } : t));
+
+    setExecutingCmd(true);
+
+    try {
+      const res = await fetch(`${apiBase}/api/terminal/exec`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          command: rawCmd,
+          terminal_id: activeTermId,
+          cwd: currentTerm.cwd
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const outputItems: Array<{ type: 'stdout' | 'stderr'; text: string }> = [];
+        if (data.stdout) outputItems.push({ type: 'stdout', text: data.stdout });
+        if (data.stderr) outputItems.push({ type: 'stderr', text: data.stderr });
+
+        // Check if cd changed project
+        if (data.project_name && data.cwd !== currentProjectPath) {
+          setCurrentProjectName(data.project_name);
+          setCurrentProjectPath(data.cwd);
+          const treeRes = await fetch(`${apiBase}/api/workspace/tree`);
+          if (treeRes.ok) {
+            const treeData = await treeRes.json();
+            setWorkspaceTree(treeData.tree || []);
+          }
+        }
+
+        setTerminals(prev => prev.map(t => t.id === activeTermId ? {
+          ...t,
+          history: [...t.history, ...outputItems],
+          cwd: data.cwd || t.cwd
+        } : t));
+      } else {
+        setTerminals(prev => prev.map(t => t.id === activeTermId ? {
+          ...t,
+          history: [...t.history, { type: 'stderr', text: 'Error: Terminal subprocess failed.' }]
+        } : t));
+      }
+    } catch (e) {
+      setTerminals(prev => prev.map(t => t.id === activeTermId ? {
+        ...t,
+        history: [...t.history, { type: 'stderr', text: 'Connection to terminal service failed.' }]
+      } : t));
+    }
+
+    setExecutingCmd(false);
+  };
+
+  // Terminal: History navigation
+  const handleTerminalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const currentTerm = terminals.find(t => t.id === activeTermId);
+    if (!currentTerm) return;
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleRunTerminalCommand();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (currentTerm.commandHistory.length === 0) return;
+      const nextIdx = currentTerm.historyIndex === -1 ? currentTerm.commandHistory.length - 1 : Math.max(0, currentTerm.historyIndex - 1);
+      const cmd = currentTerm.commandHistory[nextIdx];
+      setTerminals(prev => prev.map(t => t.id === activeTermId ? { ...t, input: cmd, historyIndex: nextIdx } : t));
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (currentTerm.historyIndex === -1) return;
+      const nextIdx = currentTerm.historyIndex + 1;
+      if (nextIdx >= currentTerm.commandHistory.length) {
+        setTerminals(prev => prev.map(t => t.id === activeTermId ? { ...t, input: '', historyIndex: -1 } : t));
+      } else {
+        const cmd = currentTerm.commandHistory[nextIdx];
+        setTerminals(prev => prev.map(t => t.id === activeTermId ? { ...t, input: cmd, historyIndex: nextIdx } : t));
+      }
+    }
+  };
+
+  // Auto-scroll terminal
+  useEffect(() => {
+    if (termScrollRef.current) {
+      termScrollRef.current.scrollTop = termScrollRef.current.scrollHeight;
+    }
+  }, [terminals, executingCmd]);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -614,7 +850,7 @@ function VSCodeAgentIDE({
         setActiveTabPath(data.path);
         setEditorContent(data.content);
         setIsDirty(false);
-        setTerminalLogs(prev => [...prev, `[File Open] Opened ${data.path} (${data.content.length} bytes)`]);
+        setFoldedLines({});
       }
     } catch (e) {
       console.error("Could not read file", e);
@@ -677,7 +913,6 @@ function VSCodeAgentIDE({
         setOpenTabs(prev => prev.map(t => t.path === activeTabPath ? { ...t, original: editorContent } : t));
         setIsDirty(false);
         setSaveStatus('✓ Saved');
-        setTerminalLogs(prev => [...prev, `[File Save] Successfully saved ${activeTabPath} (${editorContent.length} bytes)`]);
         setTimeout(() => setSaveStatus(''), 2000);
       } else {
         setSaveStatus('❌ Error');
@@ -685,6 +920,11 @@ function VSCodeAgentIDE({
     } catch (e) {
       setSaveStatus('❌ Failed');
     }
+  };
+
+  // Code Folding Toggle
+  const toggleFold = (lineIndex: number) => {
+    setFoldedLines(prev => ({ ...prev, [lineIndex]: !prev[lineIndex] }));
   };
 
   // Keyboard shortcut handler
@@ -715,7 +955,6 @@ function VSCodeAgentIDE({
       setIsDirty(snippet !== active.original);
       setOpenTabs(prev => prev.map(t => t.path === activeTabPath ? { ...t, content: snippet } : t));
     }
-    setTerminalLogs(prev => [...prev, `[Archon Apply] Applied AI code block to ${activeTabPath || 'active editor'}`]);
   };
 
   // Send Archon Agent Message (Multi-turn SSE Stream with Hybrid RAG)
@@ -803,8 +1042,9 @@ function VSCodeAgentIDE({
     setAgentLoading(false);
   };
 
-  const lineCount = editorContent.split('\n').length;
+  const rawLines = editorContent.split('\n');
   const activeTab = openTabs.find(t => t.path === activeTabPath);
+  const currentTerm = terminals.find(t => t.id === activeTermId) || terminals[0];
 
   return (
     <div className="flex flex-col h-full w-full bg-[#08090a] text-[#c9d1d9] overflow-hidden select-none border-0">
@@ -885,11 +1125,11 @@ function VSCodeAgentIDE({
                   setProjectPathInput(currentProjectPath);
                   setShowOpenProjectModal(true);
                 }}
-                title="Open Any Folder / Project..."
+                title="Open or Create Folder / Project..."
                 className="text-[#60a5fa] hover:text-[#93c5fd] text-[11px] font-mono px-2 py-0.5 rounded bg-[#12151c] hover:bg-[#1a1e26] border border-[#1e232e] cursor-pointer flex items-center gap-1"
               >
                 <Icons.FolderPlus />
-                <span>Open</span>
+                <span>Open / New</span>
               </button>
               <button
                 onClick={fetchProjectsAndTree}
@@ -1011,28 +1251,74 @@ function VSCodeAgentIDE({
             </div>
           )}
 
-          {/* Code Textarea & Gutter */}
+          {/* Code Textarea & Gutter with Syntax Highlighting & Code Folding */}
           {activeTab ? (
-            <div className="flex-1 flex overflow-hidden relative">
-              <div className="w-[48px] bg-[#07080a] border-r border-[#161922] text-right py-3 px-2 text-[12px] font-mono text-[#475569] select-none overflow-hidden leading-[1.6]">
-                {Array.from({ length: lineCount }).map((_, i) => (
-                  <div key={i} className={cursorPos.line === i + 1 ? 'text-[#60a5fa] font-bold' : ''}>
-                    {i + 1}
-                  </div>
-                ))}
+            <div className="flex-1 flex overflow-hidden relative font-mono text-[12.5px] leading-[1.6]">
+              {/* Line Gutter with Folding Arrows */}
+              <div className="w-[54px] bg-[#07080a] border-r border-[#161922] text-right py-3 px-1 text-[11.5px] font-mono text-[#475569] select-none overflow-hidden leading-[1.6]">
+                {rawLines.map((lineText, i) => {
+                  const isFoldable = /^(?:\s*)(?:def|class|function|async\s+function|const\s+\w+\s*=\s*(?:async\s*)?\(|if|elif|else|for|while|try|catch).*(?:\{|:)\s*$/.test(lineText);
+                  const isFolded = foldedLines[i];
+                  return (
+                    <div key={i} className="flex items-center justify-end gap-1 px-1 h-[20px]">
+                      {isFoldable ? (
+                        <button
+                          onClick={() => toggleFold(i)}
+                          title={isFolded ? "Unfold block" : "Fold block"}
+                          className="hover:text-[#60a5fa] cursor-pointer text-[9px] p-0.5"
+                        >
+                          {isFolded ? '▸' : '▾'}
+                        </button>
+                      ) : (
+                        <span className="w-2.5 inline-block" />
+                      )}
+                      <span className={cursorPos.line === i + 1 ? 'text-[#60a5fa] font-bold' : ''}>
+                        {i + 1}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
 
-              <textarea
-                ref={textareaRef}
-                value={editorContent}
-                onChange={handleEditorChange}
-                onKeyDown={handleKeyDown}
-                onSelect={handleEditorSelection}
-                onClick={handleEditorSelection}
-                onKeyUp={handleEditorSelection}
-                spellCheck={false}
-                className="flex-1 bg-[#090b0e] text-[#cbd5e1] p-3 text-[12.5px] font-mono leading-[1.6] resize-none focus:outline-none custom-scrollbar select-text overflow-y-auto whitespace-pre tab-4"
-              />
+              {/* Code Editor Container */}
+              <div className="flex-1 relative overflow-hidden bg-[#090b0e]">
+                {/* Syntax Highlight Overlay */}
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 p-3 pointer-events-none whitespace-pre overflow-hidden leading-[1.6] select-none"
+                >
+                  {rawLines.map((lineText, i) => (
+                    <div
+                      key={i}
+                      className={`h-[20px] ${cursorPos.line === i + 1 ? 'bg-[#1e293b]/25 rounded-sm' : ''}`}
+                    >
+                      {foldedLines[i] ? (
+                        <span>
+                          {highlightCodeLine(lineText)}
+                          <span className="text-[#3b82f6] bg-[#1e293b]/60 px-1.5 py-0.2 rounded border border-[#3b82f6]/30 ml-2 text-[10px] select-none">
+                            ... folded
+                          </span>
+                        </span>
+                      ) : (
+                        highlightCodeLine(lineText)
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Actual Typing Input Textarea */}
+                <textarea
+                  ref={textareaRef}
+                  value={editorContent}
+                  onChange={handleEditorChange}
+                  onKeyDown={handleKeyDown}
+                  onSelect={handleEditorSelection}
+                  onClick={handleEditorSelection}
+                  onKeyUp={handleEditorSelection}
+                  spellCheck={false}
+                  className="absolute inset-0 w-full h-full bg-transparent text-transparent caret-[#60a5fa] p-3 text-[12.5px] font-mono leading-[1.6] resize-none focus:outline-none custom-scrollbar select-text overflow-y-auto whitespace-pre tab-4 z-10"
+                />
+              </div>
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[#090b0e]">
@@ -1051,7 +1337,7 @@ function VSCodeAgentIDE({
                   className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-lg text-[12px] font-mono transition-all cursor-pointer font-medium flex items-center gap-2"
                 >
                   <Icons.FolderPlus />
-                  <span>Open Any Folder...</span>
+                  <span>Open or Create Project...</span>
                 </button>
                 <button
                   onClick={() => handleOpenFile('README.md')}
@@ -1064,66 +1350,159 @@ function VSCodeAgentIDE({
             </div>
           )}
 
-          {/* Collapsible Bottom Panel */}
+          {/* ── Interactive Multi-Tab Terminal & Diagnostics Panel ── */}
           {showBottomPanel && (
-            <div className="h-[140px] bg-[#07080a] border-t border-[#161922] flex flex-col flex-shrink-0">
+            <div className="h-[180px] bg-[#07080a] border-t border-[#161922] flex flex-col flex-shrink-0">
+              
+              {/* Bottom Tab Bar with + New Terminal */}
               <div className="flex justify-between items-center px-3 py-1 bg-[#090b0e] border-b border-[#161922] text-[11px] font-mono">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setBottomTab('terminal')}
+                    className={`cursor-pointer transition-colors flex items-center gap-1.5 pb-0.5 ${bottomTab === 'terminal' ? 'text-[#60a5fa] font-bold border-b-2 border-[#3b82f6]' : 'text-[#64748b] hover:text-[#94a3b8]'}`}
+                  >
+                    <Icons.Terminal />
+                    <span>TERMINAL</span>
+                  </button>
                   <button
                     onClick={() => setBottomTab('output')}
-                    className={`cursor-pointer transition-colors ${bottomTab === 'output' ? 'text-[#60a5fa] font-bold border-b border-[#3b82f6]' : 'text-[#64748b]'}`}
+                    className={`cursor-pointer transition-colors pb-0.5 ${bottomTab === 'output' ? 'text-[#60a5fa] font-bold border-b-2 border-[#3b82f6]' : 'text-[#64748b] hover:text-[#94a3b8]'}`}
                   >
                     OUTPUT
                   </button>
                   <button
-                    onClick={() => setBottomTab('terminal')}
-                    className={`cursor-pointer transition-colors ${bottomTab === 'terminal' ? 'text-[#60a5fa] font-bold border-b border-[#3b82f6]' : 'text-[#64748b]'}`}
-                  >
-                    TERMINAL
-                  </button>
-                  <button
                     onClick={() => setBottomTab('diagnostics')}
-                    className={`cursor-pointer transition-colors ${bottomTab === 'diagnostics' ? 'text-[#60a5fa] font-bold border-b border-[#3b82f6]' : 'text-[#64748b]'}`}
+                    className={`cursor-pointer transition-colors pb-0.5 ${bottomTab === 'diagnostics' ? 'text-[#60a5fa] font-bold border-b-2 border-[#3b82f6]' : 'text-[#64748b] hover:text-[#94a3b8]'}`}
                   >
                     DIAGNOSTICS
                   </button>
                 </div>
-                <button
-                  onClick={() => setShowBottomPanel(false)}
-                  className="text-[#64748b] hover:text-[#cbd5e1] cursor-pointer"
-                >
-                  <Icons.Close />
-                </button>
+
+                <div className="flex items-center gap-2">
+                  {bottomTab === 'terminal' && (
+                    <div className="flex items-center gap-1 mr-3">
+                      {terminals.map(t => (
+                        <div
+                          key={t.id}
+                          onClick={() => setActiveTermId(t.id)}
+                          className={`flex items-center gap-1.5 px-2 py-0.5 rounded cursor-pointer text-[10px] font-mono transition-colors ${
+                            activeTermId === t.id
+                              ? 'bg-[#1e293b] text-[#60a5fa] border border-[#3b82f6]/30'
+                              : 'text-[#64748b] hover:bg-[#12151c] hover:text-[#cbd5e1]'
+                          }`}
+                        >
+                          <span>{t.name}</span>
+                          {terminals.length > 1 && (
+                            <button
+                              onClick={(e) => handleCloseTerminal(t.id, e)}
+                              className="hover:text-[#ef4444] p-0.5"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        onClick={handleAddTerminal}
+                        title="Add New Terminal"
+                        className="text-[#60a5fa] hover:text-[#93c5fd] bg-[#12151c] hover:bg-[#1e293b] p-1 rounded border border-[#1e232e] cursor-pointer flex items-center gap-1 text-[10px]"
+                      >
+                        <Icons.Plus />
+                        <span>New</span>
+                      </button>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => setShowBottomPanel(false)}
+                    className="text-[#64748b] hover:text-[#cbd5e1] cursor-pointer"
+                  >
+                    <Icons.Close />
+                  </button>
+                </div>
               </div>
 
-              <div className="flex-1 p-2.5 overflow-y-auto font-mono text-[11.5px] leading-[1.6] custom-scrollbar text-[#94a3b8]">
-                {bottomTab === 'output' && (
-                  <div>
-                    {terminalLogs.map((log, i) => (
-                      <div key={i} className="text-[#94a3b8]">
-                        <span className="text-[#475569] select-none">[{new Date().toLocaleTimeString()}]</span> {log}
+              {/* Tab 1: Live Interactive Terminal */}
+              {bottomTab === 'terminal' && (
+                <div className="flex-1 flex flex-col p-2.5 overflow-hidden font-mono text-[11.5px] bg-[#07080a]">
+                  <div
+                    ref={termScrollRef}
+                    className="flex-1 overflow-y-auto space-y-1 custom-scrollbar text-[#c9d1d9] pb-1"
+                  >
+                    {currentTerm.history.map((item, i) => (
+                      <div key={i} className="leading-relaxed">
+                        {item.type === 'input' && (
+                          <div className="text-[#60a5fa] font-bold">{item.text}</div>
+                        )}
+                        {item.type === 'stdout' && (
+                          <pre className="text-[#a0a6b5] whitespace-pre-wrap">{item.text}</pre>
+                        )}
+                        {item.type === 'stderr' && (
+                          <pre className="text-[#f87171] whitespace-pre-wrap">{item.text}</pre>
+                        )}
+                        {item.type === 'system' && (
+                          <div className="text-[#10b981]">{item.text}</div>
+                        )}
                       </div>
                     ))}
+                    {executingCmd && (
+                      <div className="text-[#60a5fa] flex items-center gap-2 animate-pulse">
+                        <span className="animate-spin">⟳</span> Running command...
+                      </div>
+                    )}
                   </div>
-                )}
-                {bottomTab === 'terminal' && (
-                  <div className="text-[#38bdf8]">
-                    <span>$ Archon Agent v1.0.0 --active-project={currentProjectName}</span><br />
-                    <span className="text-[#10b981]">✓ Ingestion Service (8002): Online</span><br />
-                    <span className="text-[#10b981]">✓ RAG Hybrid Engine (8001): Online (20 indexed chunks)</span><br />
-                    <span className="text-[#10b981]">✓ Orchestrator Gateway (8000): Ready</span><br />
-                    <span className="text-[#10b981]">✓ Local GPU Ollama (11434): {selectedModel} Active</span>
+
+                  {/* Interactive Terminal Prompt Input */}
+                  <div className="flex items-center gap-2 pt-1.5 border-t border-[#161922] text-[11.5px] font-mono">
+                    <span className="text-[#10b981] flex items-center gap-1 select-none font-bold">
+                      archon@{currentProjectName}:~
+                    </span>
+                    <span className="text-[#60a5fa] select-none font-bold">$</span>
+                    <input
+                      ref={termInputRef}
+                      type="text"
+                      value={currentTerm.input}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setTerminals(prev => prev.map(t => t.id === activeTermId ? { ...t, input: val } : t));
+                      }}
+                      onKeyDown={handleTerminalKeyDown}
+                      placeholder="Type shell command (e.g. ls, git status, cd .., mkdir new-dir)..."
+                      className="flex-1 bg-transparent text-[#e2e5ea] focus:outline-none placeholder-[#475569]"
+                    />
                   </div>
-                )}
-                {bottomTab === 'diagnostics' && (
-                  <div className="text-[#cbd5e1]">
-                    <span>Project: {currentProjectPath}</span><br />
-                    <span>Active File: {activeTabPath || 'None'}</span><br />
-                    <span>Line Count: {lineCount} | Characters: {editorContent.length}</span><br />
-                    <span>Unsaved Buffer: {isDirty ? 'Yes' : 'No'}</span>
+                </div>
+              )}
+
+              {/* Tab 2: System Output Logs */}
+              {bottomTab === 'output' && (
+                <div className="flex-1 p-2.5 overflow-y-auto font-mono text-[11.5px] leading-[1.6] custom-scrollbar text-[#94a3b8]">
+                  <div>
+                    <span className="text-[#475569] select-none">[{new Date().toLocaleTimeString()}]</span> Archon Agent IDE workspace initialized.
                   </div>
-                )}
-              </div>
+                  <div>
+                    <span className="text-[#475569] select-none">[{new Date().toLocaleTimeString()}]</span> Microservices Mesh connected on {apiBase}
+                  </div>
+                  <div>
+                    <span className="text-[#475569] select-none">[{new Date().toLocaleTimeString()}]</span> GPU Model loaded: {selectedModel}
+                  </div>
+                  {activeTabPath && (
+                    <div>
+                      <span className="text-[#475569] select-none">[{new Date().toLocaleTimeString()}]</span> Active Editor Buffer: {activeTabPath}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tab 3: Diagnostics */}
+              {bottomTab === 'diagnostics' && (
+                <div className="flex-1 p-2.5 overflow-y-auto font-mono text-[11.5px] leading-[1.6] custom-scrollbar text-[#cbd5e1]">
+                  <span>Project Root: {currentProjectPath}</span><br />
+                  <span>Active File: {activeTabPath || 'None'}</span><br />
+                  <span>Line Count: {rawLines.length} | Characters: {editorContent.length}</span><br />
+                  <span>Unsaved Buffer: {isDirty ? 'Yes' : 'No'}</span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1296,9 +1675,10 @@ function VSCodeAgentIDE({
         <div className="flex items-center gap-4">
           <button
             onClick={() => setShowBottomPanel(!showBottomPanel)}
-            className="hover:text-[#cbd5e1] cursor-pointer"
+            className="hover:text-[#cbd5e1] cursor-pointer flex items-center gap-1"
           >
-            {showBottomPanel ? '▾ Panel' : '▸ Panel'}
+            <Icons.Terminal />
+            <span>{showBottomPanel ? '▾ Panel' : '▸ Panel'}</span>
           </button>
           <span className="text-[#10b981] flex items-center gap-1">
             ● Archon: {selectedModel} (GPU)
@@ -1306,7 +1686,7 @@ function VSCodeAgentIDE({
         </div>
       </div>
 
-      {/* ── Open Project / Folder Dialog Modal ───────────────────── */}
+      {/* ── Open / Create Project Workspace Modal ─────────────────── */}
       {showOpenProjectModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#0c0e12] border border-[#1a1e26] rounded-xl max-w-[550px] w-full p-6 shadow-2xl space-y-4">
@@ -1316,7 +1696,7 @@ function VSCodeAgentIDE({
                   <img src="/aionlabs.svg" alt="Archon" className="w-full h-full object-contain" />
                 </div>
                 <h3 className="text-[14px] font-mono font-bold text-[#e2e5ea]">
-                  Open Folder / Project Workspace
+                  Open or Create Folder / Project Workspace
                 </h3>
               </div>
               <button
@@ -1336,14 +1716,22 @@ function VSCodeAgentIDE({
                   type="text"
                   value={projectPathInput}
                   onChange={(e) => setProjectPathInput(e.target.value)}
-                  placeholder="e.g. D:/AIDeV or C:/Users/gaura/projects/my-app"
+                  placeholder="e.g. D:/AIDeV/my-new-app or C:/Users/gaura/projects/demo"
                   className="flex-1 bg-[#08090a] border border-[#1a1e26] rounded-lg px-3 py-2 text-[12px] font-mono text-[#e2e5ea] focus:outline-none focus:border-[#3b82f6]"
                 />
                 <button
-                  onClick={() => handleOpenProject(projectPathInput)}
-                  className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-lg text-[12px] font-mono font-semibold transition-all cursor-pointer"
+                  onClick={() => handleOpenProject(projectPathInput, false)}
+                  className="bg-[#1e293b] hover:bg-[#334155] text-[#cbd5e1] px-3.5 py-2 rounded-lg text-[12px] font-mono font-semibold transition-all cursor-pointer border border-[#334155]"
                 >
                   Open
+                </button>
+                <button
+                  onClick={() => handleOpenProject(projectPathInput, true)}
+                  title="Create folder and initialize project if missing"
+                  className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-3.5 py-2 rounded-lg text-[12px] font-mono font-semibold transition-all cursor-pointer flex items-center gap-1"
+                >
+                  <span>✨</span>
+                  <span>Create & Open</span>
                 </button>
               </div>
             </div>
@@ -1357,7 +1745,7 @@ function VSCodeAgentIDE({
                   {recentProjects.map((p, i) => (
                     <button
                       key={i}
-                      onClick={() => handleOpenProject(p)}
+                      onClick={() => handleOpenProject(p, false)}
                       className="w-full text-left p-2 rounded bg-[#08090a] hover:bg-[#12151c] border border-[#1a1e26] hover:border-[#3b82f6]/40 text-[11.5px] font-mono text-[#8b949e] hover:text-[#60a5fa] transition-colors truncate flex items-center gap-2 cursor-pointer"
                     >
                       <Icons.FolderClosed />
