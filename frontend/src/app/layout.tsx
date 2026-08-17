@@ -13,8 +13,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "API Copilot — Enterprise Retrieval Engine",
-  description: "Internal developer portal for API retrieval, search diagnostics, and code synthesis.",
+  title: "Enterprise API Copilot & Agent IDE",
+  description: "Enterprise multi-service RAG retrieval engine and AI pair programmer workspace.",
+  icons: {
+    icon: "/aionlabs.svg",
+    shortcut: "/aionlabs.svg",
+    apple: "/aionlabs.svg",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

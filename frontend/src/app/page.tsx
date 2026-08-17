@@ -724,12 +724,15 @@ function VSCodeAgentIDE({
       <div className="flex flex-1 overflow-hidden">
         
         {/* ── 1. Activity Bar (Left, 46px) ────────────────────────── */}
-        <div className="w-[46px] bg-[#060708] border-r border-[#161922] flex flex-col items-center py-3 justify-between z-10 flex-shrink-0">
-          <div className="flex flex-col items-center gap-4">
+        <div className="w-[46px] bg-[#060708] border-r border-[#161922] flex flex-col items-center py-2.5 justify-between z-10 flex-shrink-0">
+          <div className="flex flex-col items-center gap-3.5">
+            <div className="w-8 h-8 rounded-lg bg-[#12151c] border border-[#1e232e] flex items-center justify-center p-1 shadow-sm" title="AionLabs Workspace">
+              <img src="/aionlabs.svg" alt="AionLabs" className="w-full h-full object-contain" />
+            </div>
             <button
               onClick={() => setActiveActivity('explorer')}
               title="File Explorer (Ctrl+Shift+E)"
-              className={`w-9 h-9 rounded-lg flex items-center justify-center text-[16px] transition-all cursor-pointer ${
+              className={`w-8 h-8 rounded-lg flex items-center justify-center text-[15px] transition-all cursor-pointer ${
                 activeActivity === 'explorer'
                   ? 'bg-[#12151c] text-[#60a5fa] border border-[#3b82f6]/30 shadow-[0_0_12px_rgba(59,130,246,0.15)]'
                   : 'text-[#64748b] hover:text-[#cbd5e1] hover:bg-[#0e1015]'
@@ -943,8 +946,8 @@ function VSCodeAgentIDE({
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[#090b0e]">
-              <div className="w-14 h-14 rounded-2xl bg-[#12151c] border border-[#1e232e] flex items-center justify-center text-[28px] mb-4 shadow-xl">
-                ⚡
+              <div className="w-16 h-16 rounded-2xl bg-[#12151c] border border-[#1e232e] flex items-center justify-center p-3 mb-4 shadow-xl">
+                <img src="/aionlabs.svg" alt="AionLabs" className="w-full h-full object-contain" />
               </div>
               <h3 className="text-[16px] font-semibold text-[#e2e5ea] mb-1">
                 {currentProjectName} Workspace
@@ -1039,7 +1042,9 @@ function VSCodeAgentIDE({
           
           <div className="px-3.5 py-2.5 border-b border-[#161922] bg-[#090b0e] flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-[#3b82f6] animate-pulse" />
+              <div className="w-5 h-5 rounded bg-[#12151c] border border-[#1e232e] flex items-center justify-center p-0.5 shadow-sm">
+                <img src="/aionlabs.svg" alt="AionLabs" className="w-full h-full object-contain" />
+              </div>
               <span className="text-[12px] font-mono font-bold text-[#e2e5ea] tracking-tight">
                 Copilot Agent
               </span>
@@ -1206,8 +1211,10 @@ function VSCodeAgentIDE({
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#0c0e12] border border-[#1a1e26] rounded-xl max-w-[550px] w-full p-6 shadow-2xl space-y-4">
             <div className="flex justify-between items-center border-b border-[#1a1e26] pb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-[18px]">📂</span>
+              <div className="flex items-center gap-2.5">
+                <div className="w-6 h-6 rounded bg-[#12151c] border border-[#1e232e] flex items-center justify-center p-0.5 shadow-sm">
+                  <img src="/aionlabs.svg" alt="AionLabs" className="w-full h-full object-contain" />
+                </div>
                 <h3 className="text-[14px] font-mono font-bold text-[#e2e5ea]">
                   Open Folder / Project Workspace
                 </h3>
@@ -1454,13 +1461,13 @@ export default function Home() {
         <div className="max-w-[1400px] mx-auto px-6 h-[56px] flex items-center justify-between">
           
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#12151c] border border-[#1e232e] flex items-center justify-center text-[#60a5fa] text-[15px] font-bold shadow-sm">
-              ⚡
+            <div className="w-8 h-8 rounded-lg bg-[#12151c] border border-[#1e232e] flex items-center justify-center p-1.5 shadow-sm">
+              <img src="/aionlabs.svg" alt="AionLabs" className="w-full h-full object-contain" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[14px] font-semibold text-[#e2e5ea] tracking-tight">
-                  Enterprise API Copilot
+                  AionLabs API Copilot
                 </span>
                 <span className="text-[9.5px] font-mono font-medium px-1.5 py-0.2 bg-[#12151c] border border-[#1e232e] text-[#60a5fa] rounded">
                   v2.0
@@ -1563,13 +1570,18 @@ export default function Home() {
             <header className="mb-8">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
                 <div>
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-3 mb-2.5">
                     <div className="w-2 h-2 rounded-full bg-[#3b82f6] animate-pulse" />
                     <span className="text-[10px] font-mono font-medium text-[#4a5060] tracking-[0.2em] uppercase">RAG Engine Live</span>
                   </div>
-                  <h1 className="text-[28px] font-semibold text-[#e2e5ea] tracking-[-0.02em] leading-tight">
-                    API Copilot
-                  </h1>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-[#12151c] border border-[#1e232e] flex items-center justify-center p-1.5 shadow-sm">
+                      <img src="/aionlabs.svg" alt="AionLabs" className="w-full h-full object-contain" />
+                    </div>
+                    <h1 className="text-[28px] font-semibold text-[#e2e5ea] tracking-[-0.02em] leading-tight">
+                      API Copilot
+                    </h1>
+                  </div>
                   <p className="text-[13px] text-[#4a5060] mt-1.5 font-mono">Hybrid retrieval (BM25 + Dense + Cross-Encoder) & Code Synthesis</p>
                 </div>
                 
