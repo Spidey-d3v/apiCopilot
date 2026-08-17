@@ -226,7 +226,7 @@ function CodeBlock({
     if (onApplyCode) {
       onApplyCode(text);
       setApplied(true);
-      setTimeout(() => setApplied(false), 2000);
+      setTimeout(() => setApplied(false), 2500);
     }
   };
 
@@ -238,9 +238,9 @@ function CodeBlock({
           {onApplyCode && (
             <button
               onClick={handleApply}
-              className="text-[#60a5fa] hover:text-[#93c5fd] bg-[#1e293b]/60 hover:bg-[#1e293b] px-2 py-0.5 rounded transition-colors text-[10.5px] font-mono flex items-center gap-1 cursor-pointer border border-[#3b82f6]/20"
+              className="text-[#60a5fa] hover:text-[#93c5fd] bg-[#1e293b]/70 hover:bg-[#1e293b] px-2.5 py-1 rounded transition-colors text-[10.5px] font-mono flex items-center gap-1 cursor-pointer border border-[#3b82f6]/30 shadow-sm"
             >
-              {applied ? <span className="text-[#10b981]">✓ Applied</span> : <span>⚡ Apply to File</span>}
+              {applied ? <span className="text-[#10b981] font-bold">✓ Applied to Editor</span> : <span>⚡ Apply to File</span>}
             </button>
           )}
           <button
@@ -574,6 +574,7 @@ function VSCodeAgentIDE({
   const [cursorPos, setCursorPos] = useState({ line: 1, col: 1 });
   const [saveStatus, setSaveStatus] = useState<string>('');
   const [foldedLines, setFoldedLines] = useState<Record<number, boolean>>({});
+  const [lastAppliedNotice, setLastAppliedNotice] = useState<string | null>(null);
   
   // Synchronized Scroll Refs
   const gutterRef = useRef<HTMLDivElement>(null);
@@ -605,11 +606,12 @@ function VSCodeAgentIDE({
   const termScrollRef = useRef<HTMLDivElement>(null);
   const termInputRef = useRef<HTMLInputElement>(null);
 
-  // Archon Agent Multi-Turn Chat State
+  // Archon Agent Multi-Turn Chat & Auto-Apply State
+  const [autoApplyEdits, setAutoApplyEdits] = useState<boolean>(false);
   const [agentMessages, setAgentMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([
     {
       role: 'assistant',
-      content: "👋 **Hello! I am Archon Agent.**\n\nI have full context of your workspace, active editor files, and integrated Hybrid RAG API documentation. Click any file on the left to inspect and code, or ask me any programming question."
+      content: "👋 **Hello! I am Archon Agent.**\n\nI have full context of your workspace, active editor files, and integrated Hybrid RAG API documentation. Ask me to refactor code, fix bugs, optimize performance, or write tests — you can apply my code edits directly with **⚡ Apply to File** or turn on **⚡ Auto-Apply**."
     }
   ]);
   const [agentInput, setAgentInput] = useState('');
@@ -977,6 +979,7 @@ function VSCodeAgentIDE({
         setOpenTabs(prev => prev.map(t => t.path === activeTabPath ? { ...t, original: editorContent } : t));
         setIsDirty(false);
         setSaveStatus('✓ Saved');
+        setLastAppliedNotice(null);
         setTimeout(() => setSaveStatus(''), 2000);
       } else {
         setSaveStatus('❌ Error');
@@ -1013,11 +1016,22 @@ function VSCodeAgentIDE({
 
   // Apply AI code snippet into active editor buffer
   const handleApplyCodeToEditor = (snippet: string) => {
-    setEditorContent(snippet);
     const active = openTabs.find(t => t.path === activeTabPath);
     if (active) {
+      setEditorContent(snippet);
       setIsDirty(snippet !== active.original);
       setOpenTabs(prev => prev.map(t => t.path === activeTabPath ? { ...t, content: snippet } : t));
+      setLastAppliedNotice(`Archon Agent applied edits to ${active.name} • (Ctrl+S to save)`);
+      setTimeout(() => setLastAppliedNotice(null), 5000);
+    } else {
+      const tempPath = 'solution.py';
+      const newTab = { path: tempPath, name: tempPath, content: snippet, original: '' };
+      setOpenTabs([newTab]);
+      setActiveTabPath(tempPath);
+      setEditorContent(snippet);
+      setIsDirty(true);
+      setLastAppliedNotice(`Created new buffer solution.py • (Ctrl+S to save)`);
+      setTimeout(() => setLastAppliedNotice(null), 5000);
     }
   };
 
@@ -1081,7 +1095,16 @@ function VSCodeAgentIDE({
                     return clone;
                   });
                 }
-                if (data.done) break;
+                if (data.done) {
+                  // If auto-apply is turned ON, extract code block and apply automatically
+                  if (autoApplyEdits) {
+                    const codeMatch = /```(?:[a-zA-Z0-9_-]+)?\n([\s\S]*?)```/.exec(streamedResponse);
+                    if (codeMatch && codeMatch[1]) {
+                      handleApplyCodeToEditor(codeMatch[1].trim());
+                    }
+                  }
+                  break;
+                }
                 if (data.error) {
                   streamedResponse += `\n\n> ⚠️ **Error:** ${data.error}`;
                   setAgentMessages(prev => {
@@ -1279,6 +1302,25 @@ function VSCodeAgentIDE({
               </div>
             )}
           </div>
+
+          {/* Archon Agent Auto-Apply Notification Bar */}
+          {lastAppliedNotice && (
+            <div className="bg-[#10b981]/15 border-b border-[#10b981]/30 px-4 py-1.5 text-[11.5px] font-mono text-[#10b981] flex justify-between items-center animate-fade-in select-none">
+              <div className="flex items-center gap-2">
+                <span className="animate-pulse font-bold">⚡</span>
+                <span>{lastAppliedNotice}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSaveFile}
+                  className="bg-[#10b981]/20 hover:bg-[#10b981]/35 text-[#10b981] px-2 py-0.5 rounded border border-[#10b981]/40 text-[10.5px] cursor-pointer font-semibold"
+                >
+                  Save (Ctrl+S)
+                </button>
+                <button onClick={() => setLastAppliedNotice(null)} className="hover:text-white cursor-pointer px-1">✕</button>
+              </div>
+            </div>
+          )}
 
           {/* Breadcrumbs & Quick Toolbar */}
           {activeTab && (
@@ -1600,14 +1642,29 @@ function VSCodeAgentIDE({
                 {selectedModel}
               </span>
             </div>
-            <button
-              onClick={() => setAgentMessages([{ role: 'assistant', content: "Chat history cleared. How can I help you?" }])}
-              title="Clear Chat History"
-              className="text-[#64748b] hover:text-[#cbd5e1] text-[11px] font-mono p-1 rounded hover:bg-[#161922] cursor-pointer flex items-center gap-1"
-            >
-              <Icons.Trash />
-              <span>Clear</span>
-            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setAutoApplyEdits(!autoApplyEdits)}
+                title="Toggle automatic application of AI code edits directly to active file"
+                className={`px-2 py-0.5 rounded text-[10px] font-mono transition-all flex items-center gap-1 cursor-pointer border ${
+                  autoApplyEdits
+                    ? 'bg-[#3b82f6]/20 text-[#60a5fa] border-[#3b82f6]/40 font-bold'
+                    : 'bg-[#12151c] text-[#64748b] border-[#1e232e] hover:text-[#94a3b8]'
+                }`}
+              >
+                <span>⚡</span>
+                <span>Auto-Apply: {autoApplyEdits ? 'ON' : 'OFF'}</span>
+              </button>
+
+              <button
+                onClick={() => setAgentMessages([{ role: 'assistant', content: "Chat history cleared. How can I help you?" }])}
+                title="Clear Chat History"
+                className="text-[#64748b] hover:text-[#cbd5e1] text-[11px] font-mono p-1 rounded hover:bg-[#161922] cursor-pointer"
+              >
+                <Icons.Trash />
+              </button>
+            </div>
           </div>
 
           <div className="px-3 py-1.5 bg-[#08090a] border-b border-[#161922]/60 flex items-center justify-between text-[11px] font-mono">
@@ -1638,7 +1695,7 @@ function VSCodeAgentIDE({
                     : 'bg-[#08090a] border-[#161922] text-[#cbd5e1] mr-1 shadow-sm'
                 }`}
               >
-                <div className="flex items-center gap-1.5 mb-1.5 text-[10.5px] font-mono font-bold select-none">
+                <div className="flex items-center justify-between mb-1.5 text-[10.5px] font-mono font-bold select-none">
                   {msg.role === 'user' ? (
                     <span className="text-[#60a5fa] flex items-center gap-1.5">
                       <Icons.User />
@@ -1649,6 +1706,20 @@ function VSCodeAgentIDE({
                       <Icons.ArchonAI />
                       <span>Archon Agent</span>
                     </span>
+                  )}
+
+                  {msg.role === 'assistant' && msg.content.includes('```') && (
+                    <button
+                      onClick={() => {
+                        const codeMatch = /```(?:[a-zA-Z0-9_-]+)?\n([\s\S]*?)```/.exec(msg.content);
+                        if (codeMatch && codeMatch[1]) {
+                          handleApplyCodeToEditor(codeMatch[1].trim());
+                        }
+                      }}
+                      className="text-[#60a5fa] hover:text-[#93c5fd] bg-[#1e293b]/70 hover:bg-[#1e293b] px-2 py-0.5 rounded text-[10px] font-mono flex items-center gap-1 border border-[#3b82f6]/30 cursor-pointer"
+                    >
+                      <span>⚡ Apply to {activeTab ? activeTab.name : 'Editor'}</span>
+                    </button>
                   )}
                 </div>
 
@@ -1669,25 +1740,25 @@ function VSCodeAgentIDE({
           {activeTab && (
             <div className="p-2 border-t border-[#161922]/60 bg-[#08090a] flex items-center gap-1.5 overflow-x-auto custom-scrollbar select-none">
               <button
-                onClick={() => handleSendAgentMessage(`Explain what ${activeTab.path} does and summarize its core logic.`)}
-                className="whitespace-nowrap px-2 py-1 rounded text-[10.5px] font-mono bg-[#12151c] hover:bg-[#1a1e26] text-[#8b949e] hover:text-[#60a5fa] border border-[#1a1e26] transition-colors cursor-pointer flex items-center gap-1"
-              >
-                <Icons.Search />
-                <span>Explain file</span>
-              </button>
-              <button
-                onClick={() => handleSendAgentMessage(`Review ${activeTab.path} for performance optimizations and clean code.`)}
+                onClick={() => handleSendAgentMessage(`Refactor ${activeTab.path} to improve code cleanliness, maintainability, and error handling. Output the updated code.`)}
                 className="whitespace-nowrap px-2 py-1 rounded text-[10.5px] font-mono bg-[#12151c] hover:bg-[#1a1e26] text-[#8b949e] hover:text-[#60a5fa] border border-[#1a1e26] transition-colors cursor-pointer flex items-center gap-1"
               >
                 <Icons.Bolt />
-                <span>Optimize</span>
+                <span>Refactor & Apply</span>
               </button>
               <button
-                onClick={() => handleSendAgentMessage(`Write comprehensive unit tests for ${activeTab.path}.`)}
+                onClick={() => handleSendAgentMessage(`Review ${activeTab.path} for any bugs or edge cases, fix them, and provide the updated complete implementation.`)}
                 className="whitespace-nowrap px-2 py-1 rounded text-[10.5px] font-mono bg-[#12151c] hover:bg-[#1a1e26] text-[#8b949e] hover:text-[#60a5fa] border border-[#1a1e26] transition-colors cursor-pointer flex items-center gap-1"
               >
                 <Icons.Diagnostics />
-                <span>Unit Tests</span>
+                <span>Fix Bugs</span>
+              </button>
+              <button
+                onClick={() => handleSendAgentMessage(`Explain what ${activeTab.path} does and summarize its key methods.`)}
+                className="whitespace-nowrap px-2 py-1 rounded text-[10.5px] font-mono bg-[#12151c] hover:bg-[#1a1e26] text-[#8b949e] hover:text-[#60a5fa] border border-[#1a1e26] transition-colors cursor-pointer flex items-center gap-1"
+              >
+                <Icons.Search />
+                <span>Explain</span>
               </button>
             </div>
           )}

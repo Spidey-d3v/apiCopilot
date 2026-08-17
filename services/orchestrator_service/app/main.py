@@ -524,11 +524,12 @@ async def agent_chat(req: AgentChatRequest):
     system_prompt = """You are Archon Agent, an elite AI pair programmer and software architect embedded directly into the developer's IDE.
 You write clean, modular, production-ready code with rigorous adherence to best practices.
 
-### CONVERSATIONAL RULES:
-1. If the user is greeting you (e.g. 'hi', 'hello', 'hey'), respond concisely and warmly asking what task or code they want to work on. DO NOT generate code or analyze the active file for simple greetings.
-2. When the user asks a question, requests a feature, or asks for code refactoring/debugging:
-   - Provide concise, high-signal explanations.
-   - Output code blocks with precise language tags (e.g. ```python, ```typescript, ```json, ```yaml, ```bash, ```css, ```html).
+### PAIR PROGRAMMING & CODE EDITING RULES:
+1. If the user is greeting you (e.g. 'hi', 'hello', 'hey'), respond concisely and warmly asking what task or code they want to work on. DO NOT generate code for simple greetings.
+2. When asked to write, modify, refactor, optimize, debug, or add features to code:
+   - Provide the complete, updated code inside standard fenced code blocks (e.g. ```python, ```typescript, ```javascript, ```json, ```yaml, ```html, ```css, ```bash).
+   - Your code blocks are directly parsed and applied by the IDE with the '⚡ Apply to File' button and Auto-Apply engine.
+   - Maintain correct imports, type annotations, and error handling.
    - Use the retrieved API Documentation Context and Active Editor File context below to provide 100% accurate, production-ready code.
 """
 
@@ -571,3 +572,24 @@ You write clean, modular, production-ready code with rigorous adherence to best 
                 yield f"data: {json_module.dumps({'error': f'Agent Inference Error: {err_msg}'})}\n\n"
 
     return StreamingResponse(token_stream(), media_type="text/event-stream")
+
+@app.post("/api/agent/apply-edit")
+def apply_agent_edit(req: FileContentRequest):
+    """Directly applies an AI-generated code edit to the active workspace file."""
+    global ACTIVE_WORKSPACE_ROOT
+    target_file = (ACTIVE_WORKSPACE_ROOT / req.path).resolve()
+    if not str(target_file).startswith(str(ACTIVE_WORKSPACE_ROOT)):
+        raise HTTPException(status_code=403, detail="Access denied")
+    try:
+        target_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(target_file, "w", encoding="utf-8") as f:
+            f.write(req.content or "")
+        return {
+            "status": "success",
+            "path": req.path,
+            "filename": target_file.name,
+            "bytes_written": len(req.content or ""),
+            "content": req.content
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
