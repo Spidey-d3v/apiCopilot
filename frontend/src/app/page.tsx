@@ -231,7 +231,41 @@ function getFileIcon(filename: string, isDirectory: boolean = false, isOpen: boo
   }
 }
 
-/* -- Code Block with Dual Apply (Active vs. New File) -------- */
+const ARCHON_ASCII_ART = `                      @%*+-::..::+@                          
+                  %-++:.....-.....=%=-=+#@@@@@               
+                %-....:--=*=*=.:-.=.:::::*-..+#@             
+             @%%........-:+=.::...=-++*-:...::::#@           
+            %-.-....:==#.:%..+.:-:.:::+@:..=@#==*@           
+           %.=...#..=-=..:%-..::-*#+*%@@=-+%%..::+@          
+          @=-:.=:=...##:.:-%+-:-*@@@@@%#*=:-:.:+%-#          
+          @*+::::-:...*%+===%@@@@@@%*-.:-=----+%%*+@@        
+         @@=-=-.-%#-::...-%@@@@*-.:.....::#@@@#+%*=@@        
+        %---.....:@%++*#%%=..............--*@@@@@%#@@        
+       @-...::...-.::*%#:...:::-===:......::+@@@@@@@@        
+       @:.:%%##=::-+%@+::::-=**#%@@@%+..::--*@@@@@@@         
+       @+-:#*%###%%@@+....=*=---+@@@@#:.:%@@@@@@@@@          
+        @+*%=%@@#==+#..:......:::##+:...:@@@@@@@@            
+         @##-:*@%*#%+...::..............:@@@@@@@             
+         @=-*..=%=::.....:..............:@@@@                
+         @#=%=...........::::...........-@@@@                
+          +..+%+=+..........::..........-@@@@                
+          @--=+#@%...........::....+%%#+#@@@                 
+           @*.=%*.:.........::::=-=+=%@@@@@@                 
+            %*#%:..+::.....:::::.:::=@@@@@@                  
+             *=+=...#=-::..:::...:=#@@@@@@                   
+              %#*:...+%+-:::::......-%@@@                    
+                @::...:%@%=-:-:....::%@@                     
+                @-::....+@@@@%+---=#@@@@@                    
+                 *::......%@@@@@@@@@@@@@@@                   
+                 %:::......=@@@@@@@@@@@@@@@@                 
+                 @-::.......:%@@@@@@@@@@@@@@@@@@             
+                 @=:::.......-*%@@@@@@@@@@@@@@@              
+                  #:::.....:::-+*%@@@@@@@@@@@                
+                  @#-::......::-=++#%@@@@@@@                 
+                    @*=-......::::=+++*#@                    
+                       @*-:...:==+**#@                       `;
+
+/* -- Code Block with Clean Compact Header & Dedicated Action Toolbar -- */
 function CodeBlock({ 
   children, 
   className,
@@ -278,53 +312,64 @@ function CodeBlock({
   };
 
   return (
-    <div className="my-3 bg-[#0a0c10] border border-[#1a1e26] rounded-lg overflow-hidden group shadow-md">
-      <div className="flex justify-between items-center px-3.5 py-2 bg-[#0e1015] border-b border-[#1a1e26] text-[11px] font-mono text-[#4a5060]">
-        <div className="flex items-center gap-2">
-          <span className="uppercase tracking-wider text-[#6b7280] font-semibold text-[10.5px]">{lang}</span>
+    <div className="my-3 bg-[#0a0c10] border border-[#1a1e26] rounded-lg overflow-hidden group shadow-md flex flex-col">
+      {/* Clean Top Header: Language + Target Filename Pill (Left) & Compact Copy Button (Right) */}
+      <div className="flex justify-between items-center px-3 py-1.5 bg-[#0e1015] border-b border-[#1a1e26] text-[11px] font-mono text-[#4a5060] select-none">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1 mr-2">
+          <span className="uppercase tracking-wider text-[#94a3b8] font-bold text-[10px] bg-[#161922] px-1.5 py-0.5 rounded border border-[#222734] flex-shrink-0">
+            {lang}
+          </span>
           {detectedFile && (
-            <span className="text-[10px] text-[#60a5fa] bg-[#12151c] px-1.5 py-0.2 rounded border border-[#1e232e]">
-              📄 {detectedFile}
+            <span className="text-[10px] text-[#60a5fa] bg-[#12151c] px-2 py-0.5 rounded border border-[#1e232e] truncate font-medium flex items-center gap-1" title={detectedFile}>
+              <span>📄</span>
+              <span className="truncate">{detectedFile}</span>
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* If code block is for a different file type, show Create & Open */}
-          {isDifferentFromActive && onCreateNewFile && detectedFile && (
-            <button
-              onClick={handleCreateFile}
-              className="text-[#10b981] hover:text-[#34d399] bg-[#10b981]/15 hover:bg-[#10b981]/25 px-2.5 py-1 rounded transition-colors text-[10.5px] font-mono flex items-center gap-1 cursor-pointer border border-[#10b981]/30 shadow-sm"
-              title={`Create new file ${detectedFile} in workspace without overwriting ${activeFileName}`}
-            >
-              {created ? <span className="font-bold">✓ Created {detectedFile}</span> : <span>✨ Create & Open {detectedFile}</span>}
-            </button>
-          )}
-
-          {onApplyCode && (
-            <button
-              onClick={handleApply}
-              className="text-[#60a5fa] hover:text-[#93c5fd] bg-[#1e293b]/70 hover:bg-[#1e293b] px-2.5 py-1 rounded transition-colors text-[10.5px] font-mono flex items-center gap-1 cursor-pointer border border-[#3b82f6]/30 shadow-sm"
-              title={`Apply code into ${activeFileName || 'active editor'}`}
-            >
-              {applied ? <span className="text-[#10b981] font-bold">✓ Applied</span> : <span>⚡ Apply to {activeFileName ? activeFileName : 'File'}</span>}
-            </button>
-          )}
-
-          <button
-            onClick={handleCopy}
-            className="text-[#6b7280] hover:text-[#c8ccd0] px-2 py-0.5 rounded transition-colors text-[10.5px] font-mono flex items-center gap-1 cursor-pointer"
-          >
-            {copied ? <span className="text-[#10b981]">✓ Copied</span> : <span>⎘ Copy</span>}
-          </button>
-        </div>
+        <button
+          onClick={handleCopy}
+          className="text-[#8b949e] hover:text-[#e2e5ea] bg-[#161922] hover:bg-[#222734] px-2 py-0.5 rounded transition-colors text-[10.5px] font-mono flex items-center gap-1 cursor-pointer border border-[#222734] flex-shrink-0"
+        >
+          {copied ? <span className="text-[#10b981]">✓ Copied</span> : <span>⎘ Copy</span>}
+        </button>
       </div>
 
-      <div className="p-4 overflow-x-auto custom-scrollbar">
-        <pre className="text-[12.5px] font-mono leading-[1.7] text-[#93c5fd]">
+      {/* Code Text Window */}
+      <div className="p-3.5 overflow-x-auto custom-scrollbar bg-[#08090a]">
+        <pre className="text-[12px] font-mono leading-[1.65] text-[#93c5fd] selection:bg-[#3b82f6]/30">
           <code>{text}</code>
         </pre>
       </div>
+
+      {/* Dedicated Action Toolbar at Bottom of Code Block */}
+      {(onApplyCode || (isDifferentFromActive && onCreateNewFile && detectedFile)) && (
+        <div className="flex flex-wrap items-center gap-1.5 p-2 bg-[#0c0e12] border-t border-[#161922] select-none">
+          {/* Create & Open new file button */}
+          {isDifferentFromActive && onCreateNewFile && detectedFile && (
+            <button
+              onClick={handleCreateFile}
+              className="flex-1 min-w-[130px] text-[#10b981] hover:text-white bg-[#10b981]/15 hover:bg-[#10b981] px-2.5 py-1 rounded text-[11px] font-mono flex items-center justify-center gap-1.5 cursor-pointer border border-[#10b981]/30 transition-all font-semibold shadow-sm"
+              title={`Create new file ${detectedFile} in workspace without overwriting ${activeFileName}`}
+            >
+              <span>{created ? '✓' : '✨'}</span>
+              <span className="truncate">{created ? `Created ${detectedFile}` : `Create & Open ${detectedFile}`}</span>
+            </button>
+          )}
+
+          {/* Apply to Active File button */}
+          {onApplyCode && (
+            <button
+              onClick={handleApply}
+              className="flex-1 min-w-[110px] text-[#60a5fa] hover:text-white bg-[#1e293b]/80 hover:bg-[#2563eb] px-2.5 py-1 rounded text-[11px] font-mono flex items-center justify-center gap-1.5 cursor-pointer border border-[#3b82f6]/30 transition-all font-semibold shadow-sm"
+              title={`Apply code into ${activeFileName || 'active editor'}`}
+            >
+              <span>{applied ? '✓' : '⚡'}</span>
+              <span className="truncate">{applied ? 'Applied to Editor' : `Apply to ${activeFileName || 'File'}`}</span>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -690,7 +735,8 @@ function VSCodeAgentIDE({
       id: 'term-1',
       name: 'bash 1',
       history: [
-        { type: 'system', text: 'Archon Interactive Shell initialized. Type any command (e.g. ls, git status, npm test, python)...' }
+        { type: 'system', text: ARCHON_ASCII_ART },
+        { type: 'system', text: `Archon Interactive Shell v2.0 initialized in ${currentProjectPath}. Type any command (e.g. ls, git status, npm test, python)...` }
       ],
       commandHistory: [],
       historyIndex: -1,
@@ -1589,27 +1635,42 @@ function VSCodeAgentIDE({
               </div>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[#090b0e] select-none">
-              <div className="w-16 h-16 rounded-2xl bg-[#12151c] border border-[#1e232e] flex items-center justify-center p-3 mb-4 shadow-xl">
-                <img src="/aionlabs.svg" alt="Archon" className="w-full h-full object-contain" />
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-[#090b0e] select-none overflow-y-auto custom-scrollbar">
+              {/* ASCII Art Hero Display */}
+              <div className="mb-4 p-4 rounded-xl bg-[#07080a] border border-[#161922] shadow-2xl relative overflow-hidden group hover:border-[#38bdf8]/30 transition-all">
+                <div className="absolute top-2 right-3 flex items-center gap-1.5 text-[9px] font-mono text-[#38bdf8]/70 uppercase tracking-widest">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#38bdf8] animate-pulse" />
+                  ARCHON CORE
+                </div>
+                <pre className="text-[8.5px] sm:text-[9.5px] md:text-[10.5px] font-mono font-bold leading-[11px] sm:leading-[12.5px] text-[#38bdf8]/75 group-hover:text-[#38bdf8] transition-colors select-none">
+                  {ARCHON_ASCII_ART}
+                </pre>
               </div>
-              <h3 className="text-[16px] font-semibold text-[#e2e5ea] mb-1">
-                {currentProjectName} Workspace
-              </h3>
-              <p className="text-[12px] font-mono text-[#64748b] max-w-[380px] leading-relaxed mb-6">
-                Folder: <span className="text-[#94a3b8]">{currentProjectPath}</span>
+
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="text-[15px] font-mono font-bold text-[#e2e5ea]">
+                  {currentProjectName} Workspace
+                </h3>
+                <span className="text-[10px] font-mono text-[#60a5fa] px-1.5 py-0.2 bg-[#3b82f6]/10 rounded border border-[#3b82f6]/20">
+                  ⎇ {gitBranch}
+                </span>
+              </div>
+
+              <p className="text-[11.5px] font-mono text-[#64748b] max-w-[420px] leading-relaxed mb-5 truncate" title={currentProjectPath}>
+                Path: <span className="text-[#94a3b8]">{currentProjectPath}</span>
               </p>
+
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setShowOpenProjectModal(true)}
-                  className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-lg text-[12px] font-mono transition-all cursor-pointer font-medium flex items-center gap-2"
+                  className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-lg text-[11.5px] font-mono transition-all cursor-pointer font-semibold flex items-center gap-2 shadow-md"
                 >
                   <Icons.FolderPlus />
                   <span>Open or Create Project...</span>
                 </button>
                 <button
                   onClick={() => handleOpenFile('README.md')}
-                  className="bg-[#12151c] hover:bg-[#1a1e26] text-[#cbd5e1] border border-[#1e232e] px-4 py-2 rounded-lg text-[12px] font-mono transition-all cursor-pointer flex items-center gap-2"
+                  className="bg-[#12151c] hover:bg-[#1a1e26] text-[#cbd5e1] border border-[#1e232e] hover:border-[#3b82f6]/30 px-4 py-2 rounded-lg text-[11.5px] font-mono transition-all cursor-pointer flex items-center gap-2"
                 >
                   <Icons.FileCode />
                   <span>Open README.md</span>
