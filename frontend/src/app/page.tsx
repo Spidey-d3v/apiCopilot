@@ -104,6 +104,12 @@ const Icons = {
       <circle cx="12" cy="7" r="4" />
     </svg>
   ),
+  Book: () => (
+    <svg className="w-3 h-3 text-[#10b981]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </svg>
+  ),
   ChevronRight: () => (
     <svg className="w-3 h-3 text-[#64748b]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="9 18 15 12 9 6" />
@@ -115,6 +121,31 @@ const Icons = {
     </svg>
   )
 };
+
+/* -- Helper to detect target filename from code content & hints - */
+function detectTargetFilename(code: string, lang?: string): string | null {
+  const firstLines = code.split('\n').slice(0, 6).join('\n');
+  const match = /(?:#|\/\/|\/\*|<!--)\s*(?:filename|file|target):\s*([a-zA-Z0-9_\-./\\]+\.[a-zA-Z0-9]+)/i.exec(firstLines);
+  if (match && match[1]) return match[1].trim();
+
+  // Deduce from code semantics
+  if (lang === 'python' || lang === 'py' || code.includes('import requests') || code.includes('import os') || code.includes('def ')) {
+    if (code.includes('refund') && code.includes('slack')) return 'refund_slack.py';
+    if (code.includes('refund')) return 'refund.py';
+    if (code.includes('slack')) return 'slack_notify.py';
+    if (code.includes('stripe') || code.includes('charge')) return 'stripe_charge.py';
+    return 'script.py';
+  }
+  if (lang === 'typescript' || lang === 'ts' || lang === 'tsx') return 'app.ts';
+  if (lang === 'javascript' || lang === 'js' || lang === 'jsx') return 'index.js';
+  if (lang === 'markdown' || lang === 'md' || code.startsWith('# ')) return 'README.md';
+  if (lang === 'yaml' || lang === 'yml') return 'openapi.yaml';
+  if (lang === 'json') return 'config.json';
+  if (lang === 'html') return 'index.html';
+  if (lang === 'css') return 'styles.css';
+
+  return null;
+}
 
 /* -- Strategy Info Definitions ------------------------------- */
 const PIPELINE_STAGES = [
@@ -200,21 +231,29 @@ function getFileIcon(filename: string, isDirectory: boolean = false, isOpen: boo
   }
 }
 
-/* -- Code Block with Copy & Apply Actions -------------------- */
+/* -- Code Block with Dual Apply (Active vs. New File) -------- */
 function CodeBlock({ 
   children, 
   className,
-  onApplyCode
+  onApplyCode,
+  onCreateNewFile,
+  activeFileName
 }: { 
   children: any; 
   className?: string;
   onApplyCode?: (code: string) => void;
+  onCreateNewFile?: (filename: string, code: string) => void;
+  activeFileName?: string;
 }) {
   const [copied, setCopied] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [created, setCreated] = useState(false);
   const match = /language-(\w+)/.exec(className || '');
   const lang = match ? match[1] : 'code';
   const text = String(children).replace(/\n$/, '');
+
+  const detectedFile = detectTargetFilename(text, lang);
+  const isDifferentFromActive = detectedFile && activeFileName && detectedFile.toLowerCase() !== activeFileName.toLowerCase();
 
   const handleCopy = () => {
     navigator.clipboard.writeText(text);
@@ -230,19 +269,48 @@ function CodeBlock({
     }
   };
 
+  const handleCreateFile = () => {
+    if (onCreateNewFile && detectedFile) {
+      onCreateNewFile(detectedFile, text);
+      setCreated(true);
+      setTimeout(() => setCreated(false), 2500);
+    }
+  };
+
   return (
     <div className="my-3 bg-[#0a0c10] border border-[#1a1e26] rounded-lg overflow-hidden group shadow-md">
       <div className="flex justify-between items-center px-3.5 py-2 bg-[#0e1015] border-b border-[#1a1e26] text-[11px] font-mono text-[#4a5060]">
-        <span className="uppercase tracking-wider text-[#6b7280] font-semibold text-[10.5px]">{lang}</span>
         <div className="flex items-center gap-2">
+          <span className="uppercase tracking-wider text-[#6b7280] font-semibold text-[10.5px]">{lang}</span>
+          {detectedFile && (
+            <span className="text-[10px] text-[#60a5fa] bg-[#12151c] px-1.5 py-0.2 rounded border border-[#1e232e]">
+              📄 {detectedFile}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* If code block is for a different file type, show Create & Open */}
+          {isDifferentFromActive && onCreateNewFile && detectedFile && (
+            <button
+              onClick={handleCreateFile}
+              className="text-[#10b981] hover:text-[#34d399] bg-[#10b981]/15 hover:bg-[#10b981]/25 px-2.5 py-1 rounded transition-colors text-[10.5px] font-mono flex items-center gap-1 cursor-pointer border border-[#10b981]/30 shadow-sm"
+              title={`Create new file ${detectedFile} in workspace without overwriting ${activeFileName}`}
+            >
+              {created ? <span className="font-bold">✓ Created {detectedFile}</span> : <span>✨ Create & Open {detectedFile}</span>}
+            </button>
+          )}
+
           {onApplyCode && (
             <button
               onClick={handleApply}
               className="text-[#60a5fa] hover:text-[#93c5fd] bg-[#1e293b]/70 hover:bg-[#1e293b] px-2.5 py-1 rounded transition-colors text-[10.5px] font-mono flex items-center gap-1 cursor-pointer border border-[#3b82f6]/30 shadow-sm"
+              title={`Apply code into ${activeFileName || 'active editor'}`}
             >
-              {applied ? <span className="text-[#10b981] font-bold">✓ Applied to Editor</span> : <span>⚡ Apply to File</span>}
+              {applied ? <span className="text-[#10b981] font-bold">✓ Applied</span> : <span>⚡ Apply to {activeFileName ? activeFileName : 'File'}</span>}
             </button>
           )}
+
           <button
             onClick={handleCopy}
             className="text-[#6b7280] hover:text-[#c8ccd0] px-2 py-0.5 rounded transition-colors text-[10.5px] font-mono flex items-center gap-1 cursor-pointer"
@@ -251,6 +319,7 @@ function CodeBlock({
           </button>
         </div>
       </div>
+
       <div className="p-4 overflow-x-auto custom-scrollbar">
         <pre className="text-[12.5px] font-mono leading-[1.7] text-[#93c5fd]">
           <code>{text}</code>
@@ -261,7 +330,17 @@ function CodeBlock({
 }
 
 /* -- Rich Markdown Renderer (Hydration Safe) ----------------- */
-function FormattedMarkdown({ content, onApplyCode }: { content: string; onApplyCode?: (code: string) => void }) {
+function FormattedMarkdown({ 
+  content, 
+  onApplyCode, 
+  onCreateNewFile, 
+  activeFileName 
+}: { 
+  content: string; 
+  onApplyCode?: (code: string) => void;
+  onCreateNewFile?: (filename: string, code: string) => void;
+  activeFileName?: string;
+}) {
   return (
     <div className="markdown-body space-y-2 font-sans leading-relaxed text-[#a0a6b5] text-[13.5px]">
       <ReactMarkdown
@@ -297,7 +376,12 @@ function FormattedMarkdown({ content, onApplyCode }: { content: string; onApplyC
             const hasLang = /language-(\w+)/.test(className || '');
             if (!inline && hasLang) {
               return (
-                <CodeBlock className={className} onApplyCode={onApplyCode}>
+                <CodeBlock 
+                  className={className} 
+                  onApplyCode={onApplyCode}
+                  onCreateNewFile={onCreateNewFile}
+                  activeFileName={activeFileName}
+                >
                   {children}
                 </CodeBlock>
               );
@@ -541,6 +625,20 @@ interface TerminalTab {
   cwd: string;
 }
 
+interface RAGSource {
+  title: string;
+  file: string;
+  score: string | number;
+  rank: number;
+  text: string;
+}
+
+interface AgentMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  rag_sources?: RAGSource[];
+}
+
 /* -- VS Code Style Archon Agent IDE Workspace ---------------- */
 function VSCodeAgentIDE({
   apiBase,
@@ -608,7 +706,7 @@ function VSCodeAgentIDE({
 
   // Archon Agent Multi-Turn Chat & Auto-Apply State
   const [autoApplyEdits, setAutoApplyEdits] = useState<boolean>(false);
-  const [agentMessages, setAgentMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([
+  const [agentMessages, setAgentMessages] = useState<AgentMessage[]>([
     {
       role: 'assistant',
       content: "👋 **Hello! I am Archon Agent.**\n\nI have full context of your workspace, active editor files, and integrated Hybrid RAG API documentation. Ask me to refactor code, fix bugs, optimize performance, or write tests — you can apply my code edits directly with **⚡ Apply to File** or turn on **⚡ Auto-Apply**."
@@ -923,6 +1021,43 @@ function VSCodeAgentIDE({
     }
   };
 
+  // Create and open a new file in workspace
+  const handleCreateAndOpenFile = async (filename: string, content: string) => {
+    try {
+      const res = await fetch(`${apiBase}/api/workspace/file`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: filename, content: content })
+      });
+      if (res.ok) {
+        const newTab = { path: filename, name: filename, content: content, original: content };
+        setOpenTabs(prev => {
+          const idx = prev.findIndex(t => t.path === filename);
+          if (idx >= 0) {
+            const clone = [...prev];
+            clone[idx] = newTab;
+            return clone;
+          }
+          return [...prev, newTab];
+        });
+        setActiveTabPath(filename);
+        setEditorContent(content);
+        setIsDirty(false);
+        setLastAppliedNotice(`Created & opened ${filename} in workspace`);
+        setTimeout(() => setLastAppliedNotice(null), 5000);
+
+        // Refresh File Tree
+        const treeRes = await fetch(`${apiBase}/api/workspace/tree`);
+        if (treeRes.ok) {
+          const treeData = await treeRes.json();
+          setWorkspaceTree(treeData.tree || []);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to create file", e);
+    }
+  };
+
   // Close tab
   const handleCloseTab = (path: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -1024,14 +1159,8 @@ function VSCodeAgentIDE({
       setLastAppliedNotice(`Archon Agent applied edits to ${active.name} • (Ctrl+S to save)`);
       setTimeout(() => setLastAppliedNotice(null), 5000);
     } else {
-      const tempPath = 'solution.py';
-      const newTab = { path: tempPath, name: tempPath, content: snippet, original: '' };
-      setOpenTabs([newTab]);
-      setActiveTabPath(tempPath);
-      setEditorContent(snippet);
-      setIsDirty(true);
-      setLastAppliedNotice(`Created new buffer solution.py • (Ctrl+S to save)`);
-      setTimeout(() => setLastAppliedNotice(null), 5000);
+      const tempPath = detectTargetFilename(snippet) || 'solution.py';
+      handleCreateAndOpenFile(tempPath, snippet);
     }
   };
 
@@ -1040,13 +1169,13 @@ function VSCodeAgentIDE({
     const textToSend = customPrompt || agentInput;
     if (!textToSend.trim() || agentLoading) return;
 
-    const newHistory = [...agentMessages, { role: 'user' as const, content: textToSend }];
+    const newHistory: AgentMessage[] = [...agentMessages, { role: 'user', content: textToSend }];
     setAgentMessages(newHistory);
     setAgentInput('');
     setAgentLoading(true);
 
     const assistantIndex = newHistory.length;
-    setAgentMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+    setAgentMessages(prev => [...prev, { role: 'assistant', content: '', rag_sources: [] }]);
 
     try {
       const activeTab = openTabs.find(t => t.path === activeTabPath);
@@ -1087,29 +1216,57 @@ function VSCodeAgentIDE({
             if (line.startsWith('data: ')) {
               try {
                 const data = JSON.parse(line.slice(6));
+                
+                // RAG Source Citations event
+                if (data.rag_sources) {
+                  setAgentMessages(prev => {
+                    const clone = [...prev];
+                    clone[assistantIndex] = {
+                      ...clone[assistantIndex],
+                      rag_sources: data.rag_sources
+                    };
+                    return clone;
+                  });
+                }
+
+                // Token streaming
                 if (data.token) {
                   streamedResponse += data.token;
                   setAgentMessages(prev => {
                     const clone = [...prev];
-                    clone[assistantIndex] = { role: 'assistant', content: streamedResponse };
+                    clone[assistantIndex] = {
+                      ...clone[assistantIndex],
+                      content: streamedResponse
+                    };
                     return clone;
                   });
                 }
+
                 if (data.done) {
-                  // If auto-apply is turned ON, extract code block and apply automatically
+                  // If auto-apply is turned ON, extract code block and apply
                   if (autoApplyEdits) {
                     const codeMatch = /```(?:[a-zA-Z0-9_-]+)?\n([\s\S]*?)```/.exec(streamedResponse);
                     if (codeMatch && codeMatch[1]) {
-                      handleApplyCodeToEditor(codeMatch[1].trim());
+                      const detected = detectTargetFilename(codeMatch[1]);
+                      const current = activeTab?.name;
+                      if (detected && current && detected.toLowerCase() !== current.toLowerCase()) {
+                        handleCreateAndOpenFile(detected, codeMatch[1].trim());
+                      } else {
+                        handleApplyCodeToEditor(codeMatch[1].trim());
+                      }
                     }
                   }
                   break;
                 }
+
                 if (data.error) {
                   streamedResponse += `\n\n> ⚠️ **Error:** ${data.error}`;
                   setAgentMessages(prev => {
                     const clone = [...prev];
-                    clone[assistantIndex] = { role: 'assistant', content: streamedResponse };
+                    clone[assistantIndex] = {
+                      ...clone[assistantIndex],
+                      content: streamedResponse
+                    };
                     return clone;
                   });
                   break;
@@ -1713,19 +1870,62 @@ function VSCodeAgentIDE({
                       onClick={() => {
                         const codeMatch = /```(?:[a-zA-Z0-9_-]+)?\n([\s\S]*?)```/.exec(msg.content);
                         if (codeMatch && codeMatch[1]) {
-                          handleApplyCodeToEditor(codeMatch[1].trim());
+                          const detected = detectTargetFilename(codeMatch[1]);
+                          const current = activeTab?.name;
+                          if (detected && current && detected.toLowerCase() !== current.toLowerCase()) {
+                            handleCreateAndOpenFile(detected, codeMatch[1].trim());
+                          } else {
+                            handleApplyCodeToEditor(codeMatch[1].trim());
+                          }
                         }
                       }}
                       className="text-[#60a5fa] hover:text-[#93c5fd] bg-[#1e293b]/70 hover:bg-[#1e293b] px-2 py-0.5 rounded text-[10px] font-mono flex items-center gap-1 border border-[#3b82f6]/30 cursor-pointer"
                     >
-                      <span>⚡ Apply to {activeTab ? activeTab.name : 'Editor'}</span>
+                      <span>⚡ Apply Code</span>
                     </button>
                   )}
                 </div>
 
+                {/* ── RAG Citations with Interactive Hover Tooltip ──── */}
+                {msg.rag_sources && msg.rag_sources.length > 0 && (
+                  <div className="mb-3 p-2 bg-[#090b0e] border border-[#161922] rounded-lg">
+                    <div className="flex items-center gap-1.5 mb-1 text-[10px] font-mono text-[#64748b] uppercase tracking-wider font-semibold select-none">
+                      <Icons.Book />
+                      <span>Retrieved Enterprise API Sources (Hybrid RAG):</span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {msg.rag_sources.map((src, sIdx) => (
+                        <div key={sIdx} className="relative group/src">
+                          <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#10b981]/10 border border-[#10b981]/30 text-[#10b981] text-[10.5px] font-mono cursor-pointer hover:bg-[#10b981]/20 transition-colors">
+                            <span>📄 {src.file || src.title}</span>
+                            <span className="text-[9px] bg-[#10b981]/25 px-1 py-0.2 rounded font-bold">{src.score}</span>
+                          </div>
+
+                          {/* Hover Popover showing exact extracted chunk */}
+                          <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover/src:block z-50 w-[320px] p-3 rounded-lg bg-[#0c0e12] border border-[#1e293b] shadow-2xl text-[11px] font-mono text-[#cbd5e1] animate-fade-in pointer-events-auto">
+                            <div className="flex justify-between items-center pb-1.5 mb-1.5 border-b border-[#1e293b]">
+                              <span className="font-bold text-[#10b981] truncate max-w-[200px]" title={src.title}>{src.title}</span>
+                              <span className="text-[9px] text-[#60a5fa] font-semibold">Match: {src.score}</span>
+                            </div>
+                            <div className="text-[10px] text-[#64748b] mb-1">
+                              Source Spec: <span className="text-[#cbd5e1]">{src.file}</span>
+                            </div>
+                            <div className="text-[10.5px] text-[#94a3b8] leading-relaxed max-h-[160px] overflow-y-auto custom-scrollbar whitespace-pre-wrap bg-[#08090a] p-2 rounded border border-[#161922]">
+                              {src.text}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <FormattedMarkdown
                   content={msg.content}
                   onApplyCode={handleApplyCodeToEditor}
+                  onCreateNewFile={handleCreateAndOpenFile}
+                  activeFileName={activeTab?.name}
                 />
               </div>
             ))}
