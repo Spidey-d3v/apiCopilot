@@ -1,48 +1,61 @@
+<div align="center">
+
 ```
-                      @%*+-::..::+@                          
-                  %-++:.....-.....=%=-=+#@@@@@               
-                %-....:--=*=*=.:-.=.:::::*-..+#@             
-             @%%........-:+=.::...=-++*-:...::::#@           
-            %-.-....:==#.:%..+.:-:.:::+@:..=@#==*@           
-           %.=...#..=-=..:%-..::-*#+*%@@=-+%%..::+@          
-          @=-:.=:=...##:.:-%+-:-*@@@@@%#*=:-:.:+%-#          
-          @*+::::-:...*%+===%@@@@@@%*-.:-=----+%%*+@@        
-         @@=-=-.-%#-::...-%@@@@*-.:.....::#@@@#+%*=@@        
-        %---.....:@%++*#%%=..............--*@@@@@%#@@        
-       @-...::...-.::*%#:...:::-===:......::+@@@@@@@@        
-       @:.:%%##=::-+%@+::::-=**#%@@@%+..::--*@@@@@@@         
-       @+-:#*%###%%@@+....=*=---+@@@@#:.:%@@@@@@@@@          
-        @+*%=%@@#==+#..:......:::##+:...:@@@@@@@@            
-         @##-:*@%*#%+...::..............:@@@@@@@             
-         @=-*..=%=::.....:..............:@@@@                
-         @#=%=...........::::...........-@@@@                
-          +..+%+=+..........::..........-@@@@                
-          @--=+#@%...........::....+%%#+#@@@                 
-           @*.=%*.:.........::::=-=+=%@@@@@@                 
-            %*#%:..+::.....:::::.:::=@@@@@@                  
-             *=+=...#=-::..:::...:=#@@@@@@                   
-              %#*:...+%+-:::::......-%@@@                    
-                @::...:%@%=-:-:....::%@@                     
-                @-::....+@@@@%+---=#@@@@@                    
-                 *::......%@@@@@@@@@@@@@@@                   
-                 %:::......=@@@@@@@@@@@@@@@@                 
-                 @-::.......:%@@@@@@@@@@@@@@@@@@             
-                 @=:::.......-*%@@@@@@@@@@@@@@@              
-                  #:::.....:::-+*%@@@@@@@@@@@                
-                  @#-::......::-=++#%@@@@@@@                 
-                    @*=-......::::=+++*#@                    
-                       @*-:...:==+**#@                       
+  █████╗ ██████╗  ██████╗██╗  ██╗ ██████╗ ███╗   ██╗     ██████╗ ██████╗ ██████╗ ██╗██╗      ██████╗ ████████╗
+ ██╔══██╗██╔══██╗██╔════╝██║  ██║██╔═══██╗████╗  ██║    ██╔════╝██╔═══██╗██╔══██╗██║██║     ██╔═══██╗╚══██╔══╝
+ ███████║██████╔╝██║     ███████║██║   ██║██╔██╗ ██║    ██║     ██║   ██║██████╔╝██║██║     ██║   ██║   ██║   
+ ██╔══██║██╔══██╗██║     ██╔══██║██║   ██║██║╚██╗██║    ██║     ██║   ██║██╔═══╝ ██║██║     ██║   ██║   ██║   
+ ██║  ██║██║  ██║╚██████╗██║  ██║╚██████╔╝██║ ╚████║    ╚██████╗╚██████╔╝██║     ██║███████╗╚██████╔╝   ██║   
+ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝     ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚══════╝ ╚═════╝    ╚═╝   
+```
+
+```
+                               @%*+-::..::+@                                  
+                           %-++:.....-.....=%=-=+#@@@@@                       
+                         %-....:--=*=*=.:-.=.:::::*-..+#@                     
+                      @%%........-:+=.::...=-++*-:...::::#@                   
+                     %-.-....:==#.:%..+.:-:.:::+@:..=@#==*@                   
+                    %.=...#..=-=..:%-..::-*#+*%@@=-+%%..::+@                  
+                   @=-:.=:=...##:.:-%+-:-*@@@@@%#*=:-:.:+%-#                  
+                   @*+::::-:...*%+===%@@@@@@%*-.:-=----+%%*+@@                
+                  @@=-=-.-%#-::...-%@@@@*-.:.....::#@@@#+%*=@@                
+                 %---.....:@%++*#%%=..............--*@@@@@%#@@                
+                @-...::...-.::*%#:...:::-===:......::+@@@@@@@@                
+                @:.:%%##=::-+%@+::::-=**#%@@@%+..::--*@@@@@@@                 
+                @+-:#*%###%%@@+....=*=---+@@@@#:.:%@@@@@@@@@                  
+                 @+*%=%@@#==+#..:......:::##+:...:@@@@@@@@                    
+                  @##-:*@%*#%+...::..............:@@@@@@@                     
+                  @=-*..=%=::.....:..............:@@@@                        
+                  @#=%=...........::::...........-@@@@                        
+                   +..+%+=+..........::..........-@@@@                        
+                   @--=+#@%...........::....+%%#+#@@@                         
+                    @*.=%*.:.........::::=-=+=%@@@@@@                         
+                     %*#%:..+::.....:::::.:::=@@@@@@                          
+                      *=+=...#=-::..:::...:=#@@@@@@                           
+                       %#*:...+%+-:::::......-%@@@                            
+                         @::...:%@%=-:-:....::%@@                             
+                         @-::....+@@@@%+---=#@@@@@                            
+                          *::......%@@@@@@@@@@@@@@@                           
+                          %:::......=@@@@@@@@@@@@@@@@                         
+                          @-::.......:%@@@@@@@@@@@@@@@@@@                     
+                          @=:::.......-*%@@@@@@@@@@@@@@@                      
+                           #:::.....:::-+*%@@@@@@@@@@@                        
+                           @#-::......::-=++#%@@@@@@@                         
+                             @*=-......::::=+++*#@                            
+                                @*-:...:==+**#@                               
 ```
 
 # 🌌 Archon Copilot & AI Agent IDE
+**Enterprise AI Pair Programmer • Hybrid RAG Retrieval Engine • Multi-Tab Code Studio**
 
-[![Next.js](https://img.shields.io/badge/Next.js-14.x-black?style=flat&logo=next.js)](https://nextjs.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![Ollama](https://img.shields.io/badge/Ollama-Local_LLM-black?style=flat&logo=ollama)](https://ollama.com/)
-[![Docker](https://img.shields.io/badge/Docker-Compose_Ready-2496ED?style=flat&logo=docker)](https://www.docker.com/)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Next.js](https://img.shields.io/badge/Next.js-14.x-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![Ollama](https://img.shields.io/badge/Ollama-Local_GPU-black?style=for-the-badge&logo=ollama)](https://ollama.com/)
+[![ChromaDB](https://img.shields.io/badge/ChromaDB-Vector_Store-orange?style=for-the-badge)](https://trychroma.com/)
+[![Docker](https://img.shields.io/badge/Docker-Compose_Stack-2496ED?style=for-the-badge&logo=docker)](https://www.docker.com/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
-**Archon** is an enterprise-grade AI Pair Programmer, Dual-Stream Hybrid RAG Retrieval Engine, and Web-based IDE designed for modern developer workflows.
+</div>
 
 ---
 
@@ -51,10 +64,12 @@
 ### 1. 🤖 Archon Agent (Full-Featured Web IDE)
 * **VS Code-Style Tabbed Editor:** Multi-file editing with line numbers, code folding, token-level syntax highlighting, synchronized scrolling, and dirty state tracking (`● Unsaved`).
 * **⚡ 1-Click Code Apply & Auto-Apply Mode:** Directly inject generated refactors or bug fixes into active editor buffers or toggle `⚡ Auto-Apply: ON`.
-* **✨ Smart File Detection:** Distinguishes between editing the current open file and creating brand new files (e.g. `refund_slack.py`) without overwriting open tabs.
+* **✨ Smart File Detection:** Automatically distinguishes between modifying the open tab and creating brand new files (e.g. `refund_slack.py`) without overwriting unrelated files.
 * **💻 Interactive Multi-Terminal Drawer:** Real-time multi-tab terminal sessions with command history (`Up`/`Down` navigation), full selectable text, single-click copy buffer, and instant file tree synchronization.
 * **⎇ Live Git Integration:** Real-time branch detection in the status bar across any workspace directory.
-* **📁 Open / Create Project Modal:** Switch to any workspace folder or initialize new projects on the fly.
+* **📁 Open / Create Project Workspace:** Switch to any workspace folder on host drives (`C:`, `D:`, etc.) or initialize new projects on the fly.
+
+---
 
 ### 2. ⚡ Archon RAG (Hybrid Retrieval & Code Synthesis)
 * **Dual-Stream Hybrid Search:** Combines **Okapi BM25** (lexical keyword matching) and **ChromaDB Dense Vectors** (`BAAI/bge-small-en-v1.5`).
@@ -114,16 +129,16 @@ cd apiCopilot
 
 ### Option A: Run with Docker Compose (Recommended)
 ```bash
-# Build and start all 4 microservices
+# Build and start all 4 microservices in the background
 docker compose up --build -d
 
-# View status
+# Check running status
 docker compose ps
 
-# View logs
+# View streaming logs
 docker compose logs -f
 
-# Stop containers
+# Stop all containers
 docker compose down
 ```
 

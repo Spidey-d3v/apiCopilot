@@ -25,7 +25,13 @@ app.add_middleware(
 )
 
 WORKSPACE_ROOT = Path(os.getenv("WORKSPACE_ROOT", "/workspace" if os.path.exists("/workspace") else str(Path(__file__).resolve().parent.parent.parent.parent)))
-IGNORED_DIRS = {".git", "venv", ".venv", "node_modules", ".next", "__pycache__", ".idea", ".vscode", "data", "chroma_db"}
+
+IGNORED_DIRS = {
+    ".git", "venv", ".venv", "node_modules", ".next", "__pycache__", ".idea", ".vscode", "data", "chroma_db",
+    "AppData", "Application Data", "Local Settings", "Cookies", "NetHood", "PrintHood", "Recent", "SendTo",
+    "Start Menu", "Templates", ".cache", ".npm", ".config", "$RECYCLE.BIN", "System Volume Information",
+    "MicrosoftEdgeBackups", "Searches", "Contacts", "Saved Games", "Links"
+}
 
 @app.on_event("startup")
 def ensure_git_safe_directory():
@@ -454,39 +460,45 @@ def get_workspace_tree(subpath: str = ""):
     if not str(target_dir).startswith(str(ACTIVE_WORKSPACE_ROOT)):
         raise HTTPException(status_code=403, detail="Access denied")
     
-    def build_tree(dir_path: Path):
+    def build_tree(dir_path: Path, current_depth: int = 0, max_depth: int = 2):
         items = []
+        if current_depth > max_depth:
+            return items
         try:
-            entries = sorted(os.listdir(dir_path), key=lambda x: (not os.path.isdir(dir_path / x), x.lower()))
-            for entry in entries:
-                if entry in IGNORED_DIRS or entry.startswith("."):
-                    continue
-                full_path = dir_path / entry
-                rel_path = str(full_path.relative_to(ACTIVE_WORKSPACE_ROOT)).replace("\\", "/")
-                if full_path.is_dir():
-                    items.append({
-                        "name": entry,
-                        "path": rel_path,
-                        "type": "directory",
-                        "children": build_tree(full_path)
-                    })
-                else:
-                    ext = full_path.suffix.lower().lstrip(".")
-                    items.append({
-                        "name": entry,
-                        "path": rel_path,
-                        "type": "file",
-                        "extension": ext,
-                        "size": full_path.stat().st_size
-                    })
-        except Exception as e:
+            with os.scandir(dir_path) as it:
+                entries = sorted(list(it), key=lambda e: (not e.is_dir(follow_symlinks=False), e.name.lower()))
+                count = 0
+                for entry in entries:
+                    if count >= 120:
+                        break
+                    if entry.name in IGNORED_DIRS or entry.name.startswith("."):
+                        continue
+                    full_path = Path(entry.path)
+                    rel_path = str(full_path.relative_to(ACTIVE_WORKSPACE_ROOT)).replace("\\", "/")
+                    if entry.is_dir(follow_symlinks=False):
+                        items.append({
+                            "name": entry.name,
+                            "path": rel_path,
+                            "type": "directory",
+                            "children": build_tree(full_path, current_depth + 1, max_depth) if current_depth < max_depth else []
+                        })
+                    else:
+                        ext = full_path.suffix.lower().lstrip(".")
+                        items.append({
+                            "name": entry.name,
+                            "path": rel_path,
+                            "type": "file",
+                            "extension": ext
+                        })
+                    count += 1
+        except Exception:
             pass
         return items
 
     return {
         "root": str(ACTIVE_WORKSPACE_ROOT.name),
         "root_path": str(ACTIVE_WORKSPACE_ROOT).replace("\\", "/"),
-        "tree": build_tree(target_dir)
+        "tree": build_tree(target_dir, 0, 1 if str(ACTIVE_WORKSPACE_ROOT) == "/mnt/c/Users/gaura" else 2)
     }
 
 @app.get("/api/workspace/file")
