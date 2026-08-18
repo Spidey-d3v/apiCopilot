@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -57,6 +57,28 @@ const Icons = {
       <line x1="9" y1="14" x2="15" y2="14" />
     </svg>
   ),
+  FilePlus: () => (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="12" y1="18" x2="12" y2="12" />
+      <line x1="9" y1="15" x2="15" y2="15" />
+    </svg>
+  ),
+  Edit: () => (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  ),
+  Collapse: () => (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="4 14 10 14 10 20" />
+      <polyline points="20 10 14 10 14 4" />
+      <line x1="14" y1="10" x2="21" y2="3" />
+      <line x1="3" y1="21" x2="10" y2="14" />
+    </svg>
+  ),
   Refresh: () => (
     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
@@ -84,6 +106,27 @@ const Icons = {
   Bolt: () => (
     <svg className="w-3.5 h-3.5 text-[#60a5fa]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  ),
+  Compare: () => (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M12 3v18" />
+    </svg>
+  ),
+  Settings: () => (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
+    </svg>
+  ),
+  Sparkles: () => (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z" />
+    </svg>
+  ),
+  Check: () => (
+    <svg className="w-3 h-3 text-[#10b981]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
     </svg>
   ),
   Close: () => (
@@ -121,6 +164,7 @@ const Icons = {
     </svg>
   )
 };
+
 
 /* -- Helper to detect target filename from code content & hints - */
 function detectTargetFilename(code: string, lang?: string): string | null {
@@ -265,17 +309,160 @@ const ARCHON_ASCII_ART = `                      @%*+-::..::+@
                     @*=-......::::=+++*#@                    
                        @*-:...:==+**#@                       `;
 
-/* -- Code Block with Clean Compact Header & Dedicated Action Toolbar -- */
+/* -- 3-Tier Resilient Search & Replace Diff Engine ----------- */
+interface DiffBlock {
+  search: string;
+  replace: string;
+}
+
+function parseDiffBlocks(text: string): DiffBlock[] {
+  const blocks: DiffBlock[] = [];
+  if (!text) return blocks;
+
+  const regex = /<{3,9}\s*SEARCH\r?\n([\s\S]*?)\r?\n={3,9}\r?\n([\s\S]*?)(?:\r?\n>{0,9}\s*REPLACE|\r?\n(?=<{3,9}\s*SEARCH)|$)/g;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    const search = match[1].trimEnd();
+    let replace = match[2].trimEnd();
+    replace = replace.replace(/\r?\n>{0,9}\s*REPLACE\s*$/, '').trimEnd();
+    if (search.length > 0) {
+      blocks.push({ search, replace });
+    }
+  }
+  return blocks;
+}
+
+function preprocessMarkdownDiffs(content: string): string {
+  if (!content) return '';
+  const parts = content.split(/(```[\s\S]*?```)/g);
+  return parts.map(part => {
+    if (part.startsWith('```')) return part;
+    if (part.includes('SEARCH') && (part.includes('<<<<') || part.includes('===='))) {
+      return part.replace(
+        /((?:<{3,9}\s*SEARCH[\s\S]*?(?:>{0,9}\s*REPLACE|\n(?=<{3,9}\s*SEARCH)|$))+)/g,
+        '\n```diff\n$1\n```\n'
+      );
+    }
+    return part;
+  }).join('');
+}
+
+function applyDiffBlocks(originalContent: string, diffText: string): { success: boolean; newContent: string; appliedCount: number; errors: string[] } {
+  const blocks = parseDiffBlocks(diffText);
+  if (blocks.length === 0) {
+    return { success: false, newContent: originalContent, appliedCount: 0, errors: ["No valid <<<<<<< SEARCH / ======= / >>>>>>> REPLACE blocks found."] };
+  }
+
+  let currentContent = originalContent;
+  let appliedCount = 0;
+  const errors: string[] = [];
+
+  for (let i = 0; i < blocks.length; i++) {
+    const { search, replace } = blocks[i];
+    if (!search.trim()) continue;
+
+    // ── Tier 1: Exact Substring Match ──
+    if (currentContent.includes(search)) {
+      currentContent = currentContent.replace(search, replace);
+      appliedCount++;
+      continue;
+    }
+
+    // ── Tier 2: Line-by-Line Whitespace/Indentation-Tolerant Match ──
+    const fileLines = currentContent.split('\n');
+    const searchLines = search.split('\n').map(l => l.trimEnd());
+    const searchLinesTrimmed = searchLines.map(l => l.trim());
+    
+    let matchedStartIdx = -1;
+    for (let fIdx = 0; fIdx <= fileLines.length - searchLines.length; fIdx++) {
+      let isMatch = true;
+      for (let sIdx = 0; sIdx < searchLines.length; sIdx++) {
+        if (fileLines[fIdx + sIdx].trim() !== searchLinesTrimmed[sIdx]) {
+          isMatch = false;
+          break;
+        }
+      }
+      if (isMatch) {
+        matchedStartIdx = fIdx;
+        break;
+      }
+    }
+
+    if (matchedStartIdx !== -1) {
+      const matchedFirstLine = fileLines[matchedStartIdx];
+      const matchIndent = matchedFirstLine.match(/^(\s*)/)?.[1] || '';
+      
+      const searchFirstLine = search.split('\n')[0] || '';
+      const searchIndent = searchFirstLine.match(/^(\s*)/)?.[1] || '';
+
+      const replaceLines = replace.split('\n').map(line => {
+        if (!line.trim()) return line;
+        if (line.startsWith(searchIndent)) {
+          return matchIndent + line.substring(searchIndent.length);
+        }
+        return matchIndent + line.trimStart();
+      });
+
+      fileLines.splice(matchedStartIdx, searchLines.length, ...replaceLines);
+      currentContent = fileLines.join('\n');
+      appliedCount++;
+      continue;
+    }
+
+    // ── Tier 3: Anchor Match (First & Last Line Match with bounded interior) ──
+    if (searchLinesTrimmed.length >= 3) {
+      const firstSearchLine = searchLinesTrimmed[0];
+      const lastSearchLine = searchLinesTrimmed[searchLinesTrimmed.length - 1];
+
+      let anchorStart = -1;
+      let anchorEnd = -1;
+
+      for (let fIdx = 0; fIdx < fileLines.length; fIdx++) {
+        if (fileLines[fIdx].trim() === firstSearchLine) {
+          for (let look = fIdx + 1; look < Math.min(fileLines.length, fIdx + searchLines.length + 6); look++) {
+            if (fileLines[look].trim() === lastSearchLine) {
+              anchorStart = fIdx;
+              anchorEnd = look;
+              break;
+            }
+          }
+          if (anchorStart !== -1) break;
+        }
+      }
+
+      if (anchorStart !== -1 && anchorEnd !== -1) {
+        const replaceLines = replace.split('\n');
+        fileLines.splice(anchorStart, anchorEnd - anchorStart + 1, ...replaceLines);
+        currentContent = fileLines.join('\n');
+        appliedCount++;
+        continue;
+      }
+    }
+
+    errors.push(`Diff block #${i + 1} could not be matched in active file.`);
+  }
+
+  return {
+    success: appliedCount > 0,
+    newContent: currentContent,
+    appliedCount,
+    errors
+  };
+}
+
+/* -- Code Block with Clean Header, Visual Diff Preview & Surgical Apply -- */
 function CodeBlock({ 
   children, 
   className,
   onApplyCode,
+  onApplyDiff,
   onCreateNewFile,
   activeFileName
 }: { 
   children: any; 
   className?: string;
   onApplyCode?: (code: string) => void;
+  onApplyDiff?: (diffText: string) => void;
   onCreateNewFile?: (filename: string, code: string) => void;
   activeFileName?: string;
 }) {
@@ -286,6 +473,8 @@ function CodeBlock({
   const lang = match ? match[1] : 'code';
   const text = String(children).replace(/\n$/, '');
 
+  const diffBlocks = parseDiffBlocks(text);
+  const isDiffBlock = diffBlocks.length > 0;
   const detectedFile = detectTargetFilename(text, lang);
   const isDifferentFromActive = detectedFile && activeFileName && detectedFile.toLowerCase() !== activeFileName.toLowerCase();
 
@@ -296,7 +485,11 @@ function CodeBlock({
   };
 
   const handleApply = () => {
-    if (onApplyCode) {
+    if (isDiffBlock && onApplyDiff) {
+      onApplyDiff(text);
+      setApplied(true);
+      setTimeout(() => setApplied(false), 2500);
+    } else if (onApplyCode) {
       onApplyCode(text);
       setApplied(true);
       setTimeout(() => setApplied(false), 2500);
@@ -313,15 +506,22 @@ function CodeBlock({
 
   return (
     <div className="my-3 bg-[#0a0c10] border border-[#1a1e26] rounded-lg overflow-hidden group shadow-md flex flex-col">
-      {/* Clean Top Header: Language + Target Filename Pill (Left) & Compact Copy Button (Right) */}
+      {/* Top Header */}
       <div className="flex justify-between items-center px-3 py-1.5 bg-[#0e1015] border-b border-[#1a1e26] text-[11px] font-mono text-[#4a5060] select-none">
         <div className="flex items-center gap-1.5 min-w-0 flex-1 mr-2">
-          <span className="uppercase tracking-wider text-[#94a3b8] font-bold text-[10px] bg-[#161922] px-1.5 py-0.5 rounded border border-[#222734] flex-shrink-0">
-            {lang}
-          </span>
+          {isDiffBlock ? (
+            <span className="text-[10px] bg-[#3b82f6]/20 text-[#60a5fa] px-2 py-0.5 rounded border border-[#3b82f6]/40 font-bold flex items-center gap-1.5">
+              <Icons.Bolt />
+              <span>Surgical Diff Edit • {diffBlocks.length} {diffBlocks.length === 1 ? 'block' : 'blocks'}</span>
+            </span>
+          ) : (
+            <span className="uppercase tracking-wider text-[#94a3b8] font-bold text-[10px] bg-[#161922] px-1.5 py-0.5 rounded border border-[#222734] flex-shrink-0">
+              {lang}
+            </span>
+          )}
           {detectedFile && (
-            <span className="text-[10px] text-[#60a5fa] bg-[#12151c] px-2 py-0.5 rounded border border-[#1e232e] truncate font-medium flex items-center gap-1" title={detectedFile}>
-              <span>📄</span>
+            <span className="text-[10px] text-[#60a5fa] bg-[#12151c] px-2 py-0.5 rounded border border-[#1e232e] truncate font-medium flex items-center gap-1.5" title={detectedFile}>
+              <Icons.FileCode />
               <span className="truncate">{detectedFile}</span>
             </span>
           )}
@@ -331,41 +531,72 @@ function CodeBlock({
           onClick={handleCopy}
           className="text-[#8b949e] hover:text-[#e2e5ea] bg-[#161922] hover:bg-[#222734] px-2 py-0.5 rounded transition-colors text-[10.5px] font-mono flex items-center gap-1 cursor-pointer border border-[#222734] flex-shrink-0"
         >
-          {copied ? <span className="text-[#10b981]">✓ Copied</span> : <span>⎘ Copy</span>}
+          {copied ? <span className="text-[#10b981] flex items-center gap-1"><Icons.Check /> Copied</span> : <span className="flex items-center gap-1"><Icons.Copy /> Copy</span>}
         </button>
       </div>
 
-      {/* Code Text Window */}
+      {/* Code / Diff Window */}
       <div className="p-3.5 overflow-x-auto custom-scrollbar bg-[#08090a]">
-        <pre className="text-[12px] font-mono leading-[1.65] text-[#93c5fd] selection:bg-[#3b82f6]/30">
-          <code>{text}</code>
-        </pre>
+        {isDiffBlock ? (
+          <div className="space-y-3 font-mono text-[12px] leading-[1.65]">
+            {diffBlocks.map((blk, idx) => (
+              <div key={idx} className="border border-[#1e232e] rounded-md overflow-hidden">
+                <div className="bg-[#ef4444]/10 border-b border-[#ef4444]/20 px-2.5 py-1 text-[10.5px] text-[#ef4444] font-semibold flex items-center gap-1">
+                  <span>- ORIGINAL (SEARCH)</span>
+                </div>
+                <pre className="p-2.5 bg-[#140a0c] text-[#fca5a5] overflow-x-auto custom-scrollbar whitespace-pre">
+                  <code>{blk.search}</code>
+                </pre>
+                <div className="bg-[#10b981]/10 border-y border-[#10b981]/20 px-2.5 py-1 text-[10.5px] text-[#10b981] font-semibold flex items-center gap-1">
+                  <span>+ REPLACEMENT (REPLACE)</span>
+                </div>
+                <pre className="p-2.5 bg-[#081510] text-[#86efac] overflow-x-auto custom-scrollbar whitespace-pre">
+                  <code>{blk.replace}</code>
+                </pre>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <pre className="text-[12px] font-mono leading-[1.65] text-[#93c5fd] selection:bg-[#3b82f6]/30">
+            <code>{text}</code>
+          </pre>
+        )}
       </div>
 
-      {/* Dedicated Action Toolbar at Bottom of Code Block */}
-      {(onApplyCode || (isDifferentFromActive && onCreateNewFile && detectedFile)) && (
+      {/* Action Toolbar */}
+      {(onApplyDiff || onApplyCode || (isDifferentFromActive && onCreateNewFile && detectedFile)) && (
         <div className="flex flex-wrap items-center gap-1.5 p-2 bg-[#0c0e12] border-t border-[#161922] select-none">
           {/* Create & Open new file button */}
-          {isDifferentFromActive && onCreateNewFile && detectedFile && (
+          {!isDiffBlock && isDifferentFromActive && onCreateNewFile && detectedFile && (
             <button
               onClick={handleCreateFile}
               className="flex-1 min-w-[130px] text-[#10b981] hover:text-white bg-[#10b981]/15 hover:bg-[#10b981] px-2.5 py-1 rounded text-[11px] font-mono flex items-center justify-center gap-1.5 cursor-pointer border border-[#10b981]/30 transition-all font-semibold shadow-sm"
               title={`Create new file ${detectedFile} in workspace without overwriting ${activeFileName}`}
             >
-              <span>{created ? '✓' : '✨'}</span>
+              <span>{created ? <Icons.Check /> : <Icons.Sparkles />}</span>
               <span className="truncate">{created ? `Created ${detectedFile}` : `Create & Open ${detectedFile}`}</span>
             </button>
           )}
 
-          {/* Apply to Active File button */}
-          {onApplyCode && (
+          {/* Apply Diff or Full Code to Active File button */}
+          {(isDiffBlock ? onApplyDiff : onApplyCode) && (
             <button
               onClick={handleApply}
-              className="flex-1 min-w-[110px] text-[#60a5fa] hover:text-white bg-[#1e293b]/80 hover:bg-[#2563eb] px-2.5 py-1 rounded text-[11px] font-mono flex items-center justify-center gap-1.5 cursor-pointer border border-[#3b82f6]/30 transition-all font-semibold shadow-sm"
-              title={`Apply code into ${activeFileName || 'active editor'}`}
+              className={`flex-1 min-w-[110px] text-white px-2.5 py-1.5 rounded text-[11px] font-mono flex items-center justify-center gap-1.5 cursor-pointer transition-all font-semibold shadow-sm ${
+                isDiffBlock
+                  ? 'bg-[#2563eb] hover:bg-[#1d4ed8] border border-[#3b82f6]/50 shadow-[#3b82f6]/20'
+                  : 'bg-[#1e293b]/80 hover:bg-[#2563eb] border border-[#3b82f6]/30 text-[#60a5fa] hover:text-white'
+              }`}
+              title={isDiffBlock ? `Surgically apply ${diffBlocks.length} edits into ${activeFileName || 'active editor'}` : `Apply code into ${activeFileName || 'active editor'}`}
             >
-              <span>{applied ? '✓' : '⚡'}</span>
-              <span className="truncate">{applied ? 'Applied to Editor' : `Apply to ${activeFileName || 'File'}`}</span>
+              <span>{applied ? <Icons.Check /> : <Icons.Bolt />}</span>
+              <span className="truncate">
+                {applied 
+                  ? '✓ Applied to Editor' 
+                  : isDiffBlock 
+                    ? `⚡ Apply Diff (${diffBlocks.length}) to ${activeFileName || 'Editor'}` 
+                    : `Apply to ${activeFileName || 'File'}`}
+              </span>
             </button>
           )}
         </div>
@@ -377,15 +608,19 @@ function CodeBlock({
 /* -- Rich Markdown Renderer (Hydration Safe) ----------------- */
 function FormattedMarkdown({ 
   content, 
-  onApplyCode, 
+  onApplyCode,
+  onApplyDiff,
   onCreateNewFile, 
   activeFileName 
 }: { 
   content: string; 
   onApplyCode?: (code: string) => void;
+  onApplyDiff?: (diffText: string) => void;
   onCreateNewFile?: (filename: string, code: string) => void;
   activeFileName?: string;
 }) {
+  const processedContent = useMemo(() => preprocessMarkdownDiffs(content), [content]);
+
   return (
     <div className="markdown-body space-y-2 font-sans leading-relaxed text-[#a0a6b5] text-[13.5px]">
       <ReactMarkdown
@@ -419,11 +654,15 @@ function FormattedMarkdown({
           ),
           code: ({ node, inline, className, children, ...props }: any) => {
             const hasLang = /language-(\w+)/.test(className || '');
-            if (!inline && hasLang) {
+            const textContent = String(children);
+            const isDiff = textContent.includes('SEARCH') && (textContent.includes('<<<<') || textContent.includes('===='));
+            
+            if (!inline && (hasLang || isDiff || textContent.includes('\n'))) {
               return (
                 <CodeBlock 
-                  className={className} 
+                  className={className || (isDiff ? 'language-diff' : '')} 
                   onApplyCode={onApplyCode}
+                  onApplyDiff={onApplyDiff}
                   onCreateNewFile={onCreateNewFile}
                   activeFileName={activeFileName}
                 >
@@ -459,7 +698,7 @@ function FormattedMarkdown({
           hr: () => <hr className="border-[#1a1e26] my-4" />
         }}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </div>
   );
@@ -560,11 +799,19 @@ function FileTreeNode({
   node,
   activePath,
   onSelectFile,
+  onDelete,
+  onRename,
+  onNewFileInDir,
+  onNewFolderInDir,
   depth = 0
 }: {
   node: TreeNode;
   activePath: string;
   onSelectFile: (path: string) => void;
+  onDelete?: (path: string, isDir: boolean) => void;
+  onRename?: (path: string, oldName: string) => void;
+  onNewFileInDir?: (parentPath: string) => void;
+  onNewFolderInDir?: (parentPath: string) => void;
   depth?: number;
 }) {
   const [expanded, setExpanded] = useState(depth < 2);
@@ -584,18 +831,58 @@ function FileTreeNode({
     <div>
       <div
         onClick={handleClick}
-        style={{ paddingLeft: `${depth * 14 + 10}px` }}
-        className={`flex items-center gap-1.5 py-1 px-2 rounded cursor-pointer text-[12px] font-mono select-none transition-colors group ${
+        style={{ paddingLeft: `${depth * 14 + 8}px` }}
+        className={`flex items-center gap-1.5 py-1 px-1.5 rounded cursor-pointer text-[12px] font-mono select-none transition-colors group relative ${
           isActive
             ? 'bg-[#1d222e] text-[#60a5fa] font-medium'
             : 'text-[#9ca3af] hover:bg-[#12151c] hover:text-[#e2e5ea]'
         }`}
       >
-        <span className="w-3.5 flex items-center justify-center">
+        <span className="w-3.5 flex items-center justify-center flex-shrink-0">
           {isDir ? (expanded ? <Icons.ChevronDown /> : <Icons.ChevronRight />) : null}
         </span>
         {getFileIcon(node.name, isDir, expanded)}
-        <span className="truncate flex-1 ml-0.5">{node.name}</span>
+        <span className="truncate flex-1 ml-0.5" title={node.path}>{node.name}</span>
+
+        {/* Hover Action Buttons */}
+        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 bg-[#0c0e12]/90 rounded px-1 flex-shrink-0">
+          {isDir && onNewFileInDir && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onNewFileInDir(node.path); }}
+              title="New File inside folder"
+              className="text-[#64748b] hover:text-[#60a5fa] p-0.5 rounded cursor-pointer"
+            >
+              <Icons.FilePlus />
+            </button>
+          )}
+          {isDir && onNewFolderInDir && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onNewFolderInDir(node.path); }}
+              title="New Folder inside folder"
+              className="text-[#64748b] hover:text-[#60a5fa] p-0.5 rounded cursor-pointer"
+            >
+              <Icons.FolderPlus />
+            </button>
+          )}
+          {onRename && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onRename(node.path, node.name); }}
+              title="Rename"
+              className="text-[#64748b] hover:text-[#cbd5e1] p-0.5 rounded cursor-pointer"
+            >
+              <Icons.Edit />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(node.path, isDir); }}
+              title="Delete"
+              className="text-[#64748b] hover:text-[#ef4444] p-0.5 rounded cursor-pointer"
+            >
+              <Icons.Trash />
+            </button>
+          )}
+        </div>
       </div>
 
       {isDir && expanded && node.children && (
@@ -606,6 +893,10 @@ function FileTreeNode({
               node={child}
               activePath={activePath}
               onSelectFile={onSelectFile}
+              onDelete={onDelete}
+              onRename={onRename}
+              onNewFileInDir={onNewFileInDir}
+              onNewFolderInDir={onNewFolderInDir}
               depth={depth + 1}
             />
           ))}
@@ -679,9 +970,11 @@ interface RAGSource {
 }
 
 interface AgentMessage {
+  id: string;
   role: 'user' | 'assistant';
   content: string;
   rag_sources?: RAGSource[];
+  status?: string;
 }
 
 /* -- VS Code Style Archon Agent IDE Workspace ---------------- */
@@ -708,6 +1001,15 @@ function VSCodeAgentIDE({
   const [workspaceTree, setWorkspaceTree] = useState<TreeNode[]>([]);
   const [loadingTree, setLoadingTree] = useState(false);
   const [filterQuery, setFilterQuery] = useState('');
+  const [inlineCreateState, setInlineCreateState] = useState<{ parentPath: string; isDir: boolean } | null>(null);
+  const [inlineCreateName, setInlineCreateName] = useState('');
+  
+  // Quick Open (Ctrl+P) State
+  const [showQuickOpen, setShowQuickOpen] = useState(false);
+  const [quickOpenQuery, setQuickOpenQuery] = useState('');
+  const [allFiles, setAllFiles] = useState<Array<{ name: string; path: string; extension: string }>>([]);
+  const [quickOpenIndex, setQuickOpenIndex] = useState(0);
+  const quickOpenInputRef = useRef<HTMLInputElement>(null);
   
   // Tabbed Editor State
   const [openTabs, setOpenTabs] = useState<{ path: string; name: string; content: string; original: string }[]>([]);
@@ -753,10 +1055,12 @@ function VSCodeAgentIDE({
   const [autoApplyEdits, setAutoApplyEdits] = useState<boolean>(false);
   const [agentMessages, setAgentMessages] = useState<AgentMessage[]>([
     {
+      id: 'welcome',
       role: 'assistant',
-      content: "👋 **Hello! I am Archon Agent.**\n\nI have full context of your workspace, active editor files, and integrated Hybrid RAG API documentation. Ask me to refactor code, fix bugs, optimize performance, or write tests — you can apply my code edits directly with **⚡ Apply to File** or turn on **⚡ Auto-Apply**."
+      content: "**Archon Agent ready.**\n\nI have context of your workspace files and integrated Hybrid RAG API documentation. Ask me to generate API code, refactor functions, write tests, or optimize endpoints. You can apply generated code blocks directly into your editor or enable Auto-Apply."
     }
   ]);
+
   const [agentInput, setAgentInput] = useState('');
   const [agentLoading, setAgentLoading] = useState(false);
   const [includeFileContext, setIncludeFileContext] = useState(true);
@@ -1174,6 +1478,146 @@ function VSCodeAgentIDE({
     setFoldedLines(prev => ({ ...prev, [lineIndex]: !prev[lineIndex] }));
   };
 
+  // Global Shortcut Listener (Ctrl+P Quick Open, Ctrl+W Close Tab, Ctrl+S Save, Escape)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        setShowQuickOpen(prev => !prev);
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'w' || e.key === 'W')) {
+        e.preventDefault();
+        if (activeTabPath) {
+          handleCloseTab(activeTabPath);
+        }
+      } else if (e.key === 'Escape') {
+        setShowQuickOpen(false);
+        setInlineCreateState(null);
+        setShowOpenProjectModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [activeTabPath, openTabs]);
+
+  // Fetch all searchable files for Quick Open
+  const fetchAllFiles = async () => {
+    try {
+      const res = await fetch(`${apiBase}/api/workspace/all-files`);
+      if (res.ok) {
+        const data = await res.json();
+        setAllFiles(data.files || []);
+      }
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    if (showQuickOpen) {
+      fetchAllFiles();
+      setQuickOpenQuery('');
+      setQuickOpenIndex(0);
+      setTimeout(() => quickOpenInputRef.current?.focus(), 50);
+    }
+  }, [showQuickOpen]);
+
+  // Delete File or Directory
+  const handleDeleteItem = async (targetPath: string, isDir: boolean) => {
+    const confirmed = window.confirm(`Are you sure you want to delete ${isDir ? 'folder' : 'file'} "${targetPath}"?`);
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`${apiBase}/api/workspace/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: targetPath })
+      });
+      if (res.ok) {
+        setOpenTabs(prev => prev.filter(t => isDir ? !t.path.startsWith(targetPath) : t.path !== targetPath));
+        if (isDir ? activeTabPath.startsWith(targetPath) : activeTabPath === targetPath) {
+          setActiveTabPath('');
+          setEditorContent('');
+        }
+        fetchProjectsAndTree();
+      } else {
+        const err = await res.json();
+        alert(`Failed to delete: ${err.detail || 'Error'}`);
+      }
+    } catch (e) {
+      alert("Error connecting to workspace service.");
+    }
+  };
+
+  // Rename File or Directory
+  const handleRenameItem = async (oldPath: string, oldName: string) => {
+    const newName = window.prompt(`Rename "${oldName}" to:`, oldName);
+    if (!newName || !newName.trim() || newName.trim() === oldName) return;
+
+    const parts = oldPath.split('/');
+    parts[parts.length - 1] = newName.trim();
+    const newPath = parts.join('/');
+
+    try {
+      const res = await fetch(`${apiBase}/api/workspace/rename`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ old_path: oldPath, new_path: newPath })
+      });
+      if (res.ok) {
+        setOpenTabs(prev => prev.map(t => {
+          if (t.path === oldPath) {
+            return { ...t, path: newPath, name: newName.trim() };
+          }
+          if (t.path.startsWith(oldPath + '/')) {
+            const updated = newPath + t.path.substring(oldPath.length);
+            return { ...t, path: updated };
+          }
+          return t;
+        }));
+        if (activeTabPath === oldPath) {
+          setActiveTabPath(newPath);
+        }
+        fetchProjectsAndTree();
+      } else {
+        const err = await res.json();
+        alert(`Failed to rename: ${err.detail || 'Error'}`);
+      }
+    } catch (e) {
+      alert("Error connecting to workspace service.");
+    }
+  };
+
+  // Confirm inline creation of file or folder
+  const handleConfirmInlineCreate = async () => {
+    if (!inlineCreateState || !inlineCreateName.trim()) {
+      setInlineCreateState(null);
+      setInlineCreateName('');
+      return;
+    }
+    const { parentPath, isDir } = inlineCreateState;
+    const cleanName = inlineCreateName.trim();
+    const fullPath = parentPath ? `${parentPath}/${cleanName}` : cleanName;
+
+    try {
+      const res = await fetch(`${apiBase}/api/workspace/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: fullPath, is_directory: isDir })
+      });
+      if (res.ok) {
+        setInlineCreateState(null);
+        setInlineCreateName('');
+        fetchProjectsAndTree();
+        if (!isDir) {
+          handleOpenFile(fullPath);
+        }
+      } else {
+        const err = await res.json();
+        alert(`Failed to create: ${err.detail || 'Error'}`);
+      }
+    } catch (e) {
+      alert("Failed to connect to workspace service.");
+    }
+  };
+
   // Keyboard shortcut handler
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -1194,6 +1638,27 @@ function VSCodeAgentIDE({
     }
   };
 
+  // Surgically apply Diff blocks to active editor buffer
+  const handleApplyDiff = (diffSnippet: string) => {
+    const active = openTabs.find(t => t.path === activeTabPath);
+    if (!active) {
+      alert("Please open a file in the editor to apply this surgical diff.");
+      return;
+    }
+
+    const result = applyDiffBlocks(editorContent, diffSnippet);
+    if (result.success) {
+      setEditorContent(result.newContent);
+      setIsDirty(result.newContent !== active.original);
+      setOpenTabs(prev => prev.map(t => t.path === activeTabPath ? { ...t, content: result.newContent } : t));
+      setLastAppliedNotice(`✓ Surgically applied ${result.appliedCount} diff ${result.appliedCount === 1 ? 'edit' : 'edits'} to ${active.name} • (Ctrl+S to save)`);
+      setTimeout(() => setLastAppliedNotice(null), 6000);
+    } else {
+      const errDetail = result.errors.join(' ');
+      alert(`Could not apply diff surgically: ${errDetail}\n\nFalling back to manual inspection.`);
+    }
+  };
+
   // Apply AI code snippet into active editor buffer
   const handleApplyCodeToEditor = (snippet: string) => {
     const active = openTabs.find(t => t.path === activeTabPath);
@@ -1209,18 +1674,26 @@ function VSCodeAgentIDE({
     }
   };
 
-  // Send Archon Agent Message (Multi-turn SSE Stream with Hybrid RAG)
+  // Send Archon Agent Message (Multi-turn SSE Stream with Line-Buffer & ID-based state)
   const handleSendAgentMessage = async (customPrompt?: string) => {
     const textToSend = customPrompt || agentInput;
     if (!textToSend.trim() || agentLoading) return;
 
-    const newHistory: AgentMessage[] = [...agentMessages, { role: 'user', content: textToSend }];
-    setAgentMessages(newHistory);
+    const userMsgId = `user-${Date.now()}`;
+    const assistantMsgId = `assistant-${Date.now() + 1}`;
+
+    const userMsg: AgentMessage = { id: userMsgId, role: 'user', content: textToSend };
+    const assistantMsg: AgentMessage = { 
+      id: assistantMsgId, 
+      role: 'assistant', 
+      content: '', 
+      status: includeFileContext && activeTab ? `Inspecting ${activeTab.name} & generating response...` : 'Connecting to Archon Agent...' 
+    };
+
+    const newHistory = [...agentMessages, userMsg];
+    setAgentMessages(prev => [...prev, userMsg, assistantMsg]);
     setAgentInput('');
     setAgentLoading(true);
-
-    const assistantIndex = newHistory.length;
-    setAgentMessages(prev => [...prev, { role: 'assistant', content: '', rag_sources: [] }]);
 
     try {
       const activeTab = openTabs.find(t => t.path === activeTabPath);
@@ -1228,7 +1701,7 @@ function VSCodeAgentIDE({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: newHistory,
+          messages: newHistory.map(m => ({ role: m.role, content: m.content })),
           active_file_path: includeFileContext && activeTab ? activeTab.path : null,
           active_file_content: includeFileContext && activeTab ? editorContent : null,
           model: selectedModel
@@ -1236,17 +1709,14 @@ function VSCodeAgentIDE({
       });
 
       if (!res.ok) {
-        setAgentMessages(prev => {
-          const clone = [...prev];
-          clone[assistantIndex] = { role: 'assistant', content: '❌ **Error:** Failed to connect to Agent service.' };
-          return clone;
-        });
+        setAgentMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, content: '❌ **Error:** Failed to connect to Agent service.', status: undefined } : m));
         setAgentLoading(false);
         return;
       }
 
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
+      let lineBuffer = '';
       let streamedResponse = '';
 
       if (reader) {
@@ -1254,50 +1724,56 @@ function VSCodeAgentIDE({
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
+          lineBuffer += decoder.decode(value, { stream: true });
+          const lines = lineBuffer.split('\n');
+          lineBuffer = lines.pop() || '';
 
-          for (const line of lines) {
+          for (const rawLine of lines) {
+            const line = rawLine.trim();
             if (line.startsWith('data: ')) {
               try {
                 const data = JSON.parse(line.slice(6));
                 
                 // RAG Source Citations event
                 if (data.rag_sources) {
-                  setAgentMessages(prev => {
-                    const clone = [...prev];
-                    clone[assistantIndex] = {
-                      ...clone[assistantIndex],
-                      rag_sources: data.rag_sources
-                    };
-                    return clone;
-                  });
+                  setAgentMessages(prev => prev.map(m => m.id === assistantMsgId ? {
+                    ...m,
+                    rag_sources: data.rag_sources,
+                    status: 'Synthesizing solution with retrieved documentation...'
+                  } : m));
                 }
 
                 // Token streaming
                 if (data.token) {
                   streamedResponse += data.token;
-                  setAgentMessages(prev => {
-                    const clone = [...prev];
-                    clone[assistantIndex] = {
-                      ...clone[assistantIndex],
-                      content: streamedResponse
-                    };
-                    return clone;
-                  });
+                  setAgentMessages(prev => prev.map(m => m.id === assistantMsgId ? {
+                    ...m,
+                    content: streamedResponse,
+                    status: undefined
+                  } : m));
                 }
 
                 if (data.done) {
-                  // If auto-apply is turned ON, extract code block and apply
+                  setAgentMessages(prev => prev.map(m => m.id === assistantMsgId ? {
+                    ...m,
+                    status: undefined
+                  } : m));
+
+                  // If auto-apply is turned ON, extract diff or code block and apply
                   if (autoApplyEdits) {
-                    const codeMatch = /```(?:[a-zA-Z0-9_-]+)?\n([\s\S]*?)```/.exec(streamedResponse);
-                    if (codeMatch && codeMatch[1]) {
-                      const detected = detectTargetFilename(codeMatch[1]);
-                      const current = activeTab?.name;
-                      if (detected && current && detected.toLowerCase() !== current.toLowerCase()) {
-                        handleCreateAndOpenFile(detected, codeMatch[1].trim());
-                      } else {
-                        handleApplyCodeToEditor(codeMatch[1].trim());
+                    const diffBlocks = parseDiffBlocks(streamedResponse);
+                    if (diffBlocks.length > 0) {
+                      handleApplyDiff(streamedResponse);
+                    } else {
+                      const codeMatch = /```(?:[a-zA-Z0-9_-]+)?\n([\s\S]*?)```/.exec(streamedResponse);
+                      if (codeMatch && codeMatch[1]) {
+                        const detected = detectTargetFilename(codeMatch[1]);
+                        const current = activeTab?.name;
+                        if (detected && current && detected.toLowerCase() !== current.toLowerCase()) {
+                          handleCreateAndOpenFile(detected, codeMatch[1].trim());
+                        } else {
+                          handleApplyCodeToEditor(codeMatch[1].trim());
+                        }
                       }
                     }
                   }
@@ -1306,14 +1782,11 @@ function VSCodeAgentIDE({
 
                 if (data.error) {
                   streamedResponse += `\n\n> ⚠️ **Error:** ${data.error}`;
-                  setAgentMessages(prev => {
-                    const clone = [...prev];
-                    clone[assistantIndex] = {
-                      ...clone[assistantIndex],
-                      content: streamedResponse
-                    };
-                    return clone;
-                  });
+                  setAgentMessages(prev => prev.map(m => m.id === assistantMsgId ? {
+                    ...m,
+                    content: streamedResponse,
+                    status: undefined
+                  } : m));
                   break;
                 }
               } catch (e) {}
@@ -1322,11 +1795,7 @@ function VSCodeAgentIDE({
         }
       }
     } catch (e) {
-      setAgentMessages(prev => {
-        const clone = [...prev];
-        clone[assistantIndex] = { role: 'assistant', content: '❌ **Error:** Connection lost.' };
-        return clone;
-      });
+      setAgentMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, content: '❌ **Error:** Connection lost.', status: undefined } : m));
     }
     setAgentLoading(false);
   };
@@ -1382,7 +1851,7 @@ function VSCodeAgentIDE({
             </button>
             <button
               onClick={() => setActiveActivity('diagnostics')}
-              title="Mesh Health & Diagnostics"
+              title="Health & Diagnostics"
               className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
                 activeActivity === 'diagnostics'
                   ? 'bg-[#12151c] text-[#60a5fa] border border-[#3b82f6]/30'
@@ -1394,52 +1863,114 @@ function VSCodeAgentIDE({
           </div>
 
           <div className="flex flex-col items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-[#10b981] animate-pulse" title="Mesh Online" />
+            <div className="w-2 h-2 rounded-full bg-[#10b981] animate-pulse" title="online" />
           </div>
         </div>
 
-        {/* ── 2. Sidebar (Explorer / Search, 250px) ────────────────── */}
+
+        {/* ── 2. Sidebar (Explorer / Search, 260px) ────────────────── */}
         <div className="w-[260px] bg-[#0c0e12] border-r border-[#161922] flex flex-col flex-shrink-0 overflow-hidden select-none">
           
-          {/* Project Title Bar & Open Folder Button */}
-          <div className="px-3 py-2.5 border-b border-[#161922] flex justify-between items-center bg-[#090b0e]">
+          {/* Project Title Bar & Explorer Actions Toolbar */}
+          <div className="px-3 py-2 border-b border-[#161922] flex justify-between items-center bg-[#090b0e]">
             <div className="flex items-center gap-1.5 truncate">
-              <span className="text-[11px] font-mono font-bold tracking-wider text-[#e2e5ea] uppercase truncate max-w-[130px]" title={currentProjectPath}>
+              <span className="text-[11px] font-mono font-bold tracking-wider text-[#e2e5ea] uppercase truncate max-w-[105px]" title={currentProjectPath}>
                 {currentProjectName}
               </span>
             </div>
-            <div className="flex items-center gap-1">
+            
+            {/* VS Code Style Action Icons */}
+            <div className="flex items-center gap-0.5">
+              <button
+                onClick={() => {
+                  setInlineCreateState({ parentPath: '', isDir: false });
+                  setInlineCreateName('');
+                }}
+                title="New File..."
+                className="text-[#64748b] hover:text-[#60a5fa] p-1 rounded hover:bg-[#161922] cursor-pointer"
+              >
+                <Icons.FilePlus />
+              </button>
+              <button
+                onClick={() => {
+                  setInlineCreateState({ parentPath: '', isDir: true });
+                  setInlineCreateName('');
+                }}
+                title="New Folder..."
+                className="text-[#64748b] hover:text-[#60a5fa] p-1 rounded hover:bg-[#161922] cursor-pointer"
+              >
+                <Icons.FolderPlus />
+              </button>
+              <button
+                onClick={fetchProjectsAndTree}
+                title="Refresh Explorer"
+                className="text-[#64748b] hover:text-[#cbd5e1] p-1 rounded hover:bg-[#161922] cursor-pointer"
+              >
+                <Icons.Refresh />
+              </button>
               <button
                 onClick={() => {
                   setProjectPathInput(currentProjectPath);
                   setShowOpenProjectModal(true);
                 }}
-                title="Open or Create Folder / Project..."
-                className="text-[#60a5fa] hover:text-[#93c5fd] text-[11px] font-mono px-2 py-0.5 rounded bg-[#12151c] hover:bg-[#1a1e26] border border-[#1e232e] cursor-pointer flex items-center gap-1"
+                title="Open Folder / Switch Workspace..."
+                className="text-[#64748b] hover:text-[#60a5fa] p-1 rounded hover:bg-[#161922] cursor-pointer ml-0.5"
               >
-                <Icons.FolderPlus />
-                <span>Open / New</span>
-              </button>
-              <button
-                onClick={fetchProjectsAndTree}
-                title="Refresh Workspace"
-                className="text-[#64748b] hover:text-[#cbd5e1] p-1 rounded hover:bg-[#161922] cursor-pointer"
-              >
-                <Icons.Refresh />
+                <Icons.FolderClosed />
               </button>
             </div>
           </div>
 
-          {/* Quick Filter Input */}
-          <div className="p-2 border-b border-[#161922]/60">
+          {/* Quick Filter Input & Quick Open Ctrl+P Trigger */}
+          <div className="p-2 border-b border-[#161922]/60 flex items-center gap-1.5">
             <input
               type="text"
               value={filterQuery}
               onChange={(e) => setFilterQuery(e.target.value)}
               placeholder="Filter files..."
-              className="w-full bg-[#08090a] border border-[#1a1e26] rounded px-2.5 py-1 text-[11px] font-mono text-[#cbd5e1] focus:outline-none focus:border-[#3b82f6]/50 placeholder-[#475569]"
+              className="flex-1 bg-[#08090a] border border-[#1a1e26] rounded px-2.5 py-1 text-[11px] font-mono text-[#cbd5e1] focus:outline-none focus:border-[#3b82f6]/50 placeholder-[#475569]"
             />
+            <button
+              onClick={() => setShowQuickOpen(true)}
+              title="Quick Open File (Ctrl+P)"
+              className="bg-[#12151c] hover:bg-[#1a1e26] text-[#64748b] hover:text-[#60a5fa] px-1.5 py-1 rounded text-[10px] font-mono border border-[#1e232e] cursor-pointer flex-shrink-0"
+            >
+              Ctrl+P
+            </button>
           </div>
+
+          {/* Inline Creation Prompt at Root */}
+          {inlineCreateState && inlineCreateState.parentPath === '' && (
+            <div className="p-2 bg-[#12151c] border-b border-[#3b82f6]/30 flex items-center gap-1.5">
+              <span className="text-[#60a5fa]">
+                {inlineCreateState.isDir ? <Icons.FolderPlus /> : <Icons.FilePlus />}
+              </span>
+              <input
+                type="text"
+                autoFocus
+                value={inlineCreateName}
+                onChange={(e) => setInlineCreateName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleConfirmInlineCreate();
+                  if (e.key === 'Escape') setInlineCreateState(null);
+                }}
+                placeholder={inlineCreateState.isDir ? "Folder name..." : "File name..."}
+                className="flex-1 bg-[#08090a] border border-[#3b82f6]/60 rounded px-2 py-0.5 text-[11px] font-mono text-white focus:outline-none"
+              />
+              <button
+                onClick={handleConfirmInlineCreate}
+                className="text-[10px] bg-[#3b82f6] text-white px-2 py-0.5 rounded font-mono cursor-pointer"
+              >
+                ✓
+              </button>
+              <button
+                onClick={() => setInlineCreateState(null)}
+                className="text-[10px] text-[#64748b] hover:text-white px-1 font-mono cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+          )}
 
           {/* File Tree List */}
           <div className="flex-1 overflow-y-auto p-1.5 custom-scrollbar">
@@ -1454,6 +1985,16 @@ function VSCodeAgentIDE({
                   node={node}
                   activePath={activeTabPath}
                   onSelectFile={handleOpenFile}
+                  onDelete={handleDeleteItem}
+                  onRename={handleRenameItem}
+                  onNewFileInDir={(p) => {
+                    setInlineCreateState({ parentPath: p, isDir: false });
+                    setInlineCreateName('');
+                  }}
+                  onNewFolderInDir={(p) => {
+                    setInlineCreateState({ parentPath: p, isDir: true });
+                    setInlineCreateName('');
+                  }}
                 />
               ))
             ) : (
@@ -1509,9 +2050,10 @@ function VSCodeAgentIDE({
           {lastAppliedNotice && (
             <div className="bg-[#10b981]/15 border-b border-[#10b981]/30 px-4 py-1.5 text-[11.5px] font-mono text-[#10b981] flex justify-between items-center animate-fade-in select-none">
               <div className="flex items-center gap-2">
-                <span className="animate-pulse font-bold">⚡</span>
+                <span className="text-[#10b981] flex items-center"><Icons.Sparkles /></span>
                 <span>{lastAppliedNotice}</span>
               </div>
+
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleSaveFile}
@@ -1843,37 +2385,40 @@ function VSCodeAgentIDE({
         {/* ── 4. Archon Agent Chat Panel (Right, 380px) ───────────── */}
         <div className="w-[380px] bg-[#0c0e12] border-l border-[#161922] flex flex-col flex-shrink-0 overflow-hidden select-none">
           
-          <div className="px-3.5 py-2.5 border-b border-[#161922] bg-[#090b0e] flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded bg-[#12151c] border border-[#1e232e] flex items-center justify-center p-0.5 shadow-sm">
+          <div className="px-3 py-2 border-b border-[#161922] bg-[#090b0e] flex justify-between items-center gap-2 min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              <div className="w-5 h-5 rounded bg-[#12151c] border border-[#1e232e] flex items-center justify-center p-0.5 shadow-sm flex-shrink-0">
                 <img src="/aionlabs.svg" alt="Archon" className="w-full h-full object-contain" />
               </div>
-              <span className="text-[12px] font-mono font-bold text-[#e2e5ea] tracking-tight">
+              <span className="text-[12px] font-mono font-bold text-[#e2e5ea] tracking-tight whitespace-nowrap flex-shrink-0">
                 Archon Agent
               </span>
-              <span className="text-[10px] font-mono text-[#60a5fa] px-1.5 py-0.2 bg-[#3b82f6]/10 rounded border border-[#3b82f6]/20">
+              <span 
+                className="text-[10px] font-mono text-[#60a5fa] px-1.5 py-0.2 bg-[#3b82f6]/10 rounded border border-[#3b82f6]/20 truncate max-w-[110px] inline-block"
+                title={selectedModel}
+              >
                 {selectedModel}
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               <button
                 onClick={() => setAutoApplyEdits(!autoApplyEdits)}
                 title="Toggle automatic application of AI code edits directly to active file"
-                className={`px-2 py-0.5 rounded text-[10px] font-mono transition-all flex items-center gap-1 cursor-pointer border ${
+                className={`px-2 py-0.5 rounded text-[10px] font-mono transition-all flex items-center gap-1 cursor-pointer border whitespace-nowrap ${
                   autoApplyEdits
                     ? 'bg-[#3b82f6]/20 text-[#60a5fa] border-[#3b82f6]/40 font-bold'
                     : 'bg-[#12151c] text-[#64748b] border-[#1e232e] hover:text-[#94a3b8]'
                 }`}
               >
-                <span>⚡</span>
+                <Icons.Sparkles />
                 <span>Auto-Apply: {autoApplyEdits ? 'ON' : 'OFF'}</span>
               </button>
 
               <button
-                onClick={() => setAgentMessages([{ role: 'assistant', content: "Chat history cleared. How can I help you?" }])}
+                onClick={() => setAgentMessages([{ id: 'cleared', role: 'assistant', content: "Chat history cleared. How can I help you?" }])}
                 title="Clear Chat History"
-                className="text-[#64748b] hover:text-[#cbd5e1] text-[11px] font-mono p-1 rounded hover:bg-[#161922] cursor-pointer"
+                className="text-[#64748b] hover:text-[#cbd5e1] text-[11px] font-mono p-1 rounded hover:bg-[#161922] cursor-pointer flex-shrink-0"
               >
                 <Icons.Trash />
               </button>
@@ -1899,16 +2444,16 @@ function VSCodeAgentIDE({
           </div>
 
           <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-3.5 space-y-4 custom-scrollbar select-text">
-            {agentMessages.map((msg, i) => (
+            {agentMessages.map((msg) => (
               <div
-                key={i}
-                className={`p-3 rounded-lg border text-[12.5px] leading-relaxed transition-all ${
+                key={msg.id}
+                className={`p-3 rounded-lg border text-[12px] font-mono leading-relaxed select-text transition-all ${
                   msg.role === 'user'
-                    ? 'bg-[#12151c] border-[#1e2430] text-[#e2e5ea] ml-4'
-                    : 'bg-[#08090a] border-[#161922] text-[#cbd5e1] mr-1 shadow-sm'
+                    ? 'bg-[#121620] border-[#222a3a] text-[#e2e5ea]'
+                    : 'bg-[#0a0c10] border-[#161922] text-[#cbd5e1]'
                 }`}
               >
-                <div className="flex items-center justify-between mb-1.5 text-[10.5px] font-mono font-bold select-none">
+                <div className="flex items-center justify-between mb-1.5 text-[10.5px] font-mono font-bold select-none border-b border-[#161922]/60 pb-1">
                   {msg.role === 'user' ? (
                     <span className="text-[#60a5fa] flex items-center gap-1.5">
                       <Icons.User />
@@ -1921,7 +2466,12 @@ function VSCodeAgentIDE({
                     </span>
                   )}
 
-                  {msg.role === 'assistant' && msg.content.includes('```') && (
+                  {msg.status ? (
+                    <span className="text-[10px] text-[#60a5fa] font-mono flex items-center gap-1.5 animate-pulse">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#60a5fa]" />
+                      <span>{msg.status}</span>
+                    </span>
+                  ) : msg.role === 'assistant' && msg.content.includes('```') && (
                     <button
                       onClick={() => {
                         const codeMatch = /```(?:[a-zA-Z0-9_-]+)?\n([\s\S]*?)```/.exec(msg.content);
@@ -1937,7 +2487,8 @@ function VSCodeAgentIDE({
                       }}
                       className="text-[#60a5fa] hover:text-[#93c5fd] bg-[#1e293b]/70 hover:bg-[#1e293b] px-2 py-0.5 rounded text-[10px] font-mono flex items-center gap-1 border border-[#3b82f6]/30 cursor-pointer"
                     >
-                      <span>⚡ Apply Code</span>
+                      <Icons.Sparkles />
+                      <span>Apply Code</span>
                     </button>
                   )}
                 </div>
@@ -1953,8 +2504,9 @@ function VSCodeAgentIDE({
                     <div className="flex flex-wrap gap-1.5">
                       {msg.rag_sources.map((src, sIdx) => (
                         <div key={sIdx} className="relative group/src">
-                          <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#10b981]/10 border border-[#10b981]/30 text-[#10b981] text-[10.5px] font-mono cursor-pointer hover:bg-[#10b981]/20 transition-colors">
-                            <span>📄 {src.file || src.title}</span>
+                          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#10b981]/10 border border-[#10b981]/30 text-[#10b981] text-[10.5px] font-mono cursor-pointer hover:bg-[#10b981]/20 transition-colors">
+                            <Icons.FileCode />
+                            <span>{src.file || src.title}</span>
                             <span className="text-[9px] bg-[#10b981]/25 px-1 py-0.2 rounded font-bold">{src.score}</span>
                           </div>
 
@@ -1977,18 +2529,27 @@ function VSCodeAgentIDE({
                   </div>
                 )}
 
-                <FormattedMarkdown
-                  content={msg.content}
-                  onApplyCode={handleApplyCodeToEditor}
-                  onCreateNewFile={handleCreateAndOpenFile}
-                  activeFileName={activeTab?.name}
-                />
+                {msg.content ? (
+                  <FormattedMarkdown
+                    content={msg.content}
+                    onApplyCode={handleApplyCodeToEditor}
+                    onApplyDiff={handleApplyDiff}
+                    onCreateNewFile={handleCreateAndOpenFile}
+                    activeFileName={activeTab?.name}
+                  />
+                ) : msg.status ? (
+                  <div className="py-3 flex items-center gap-2.5 text-[11.5px] text-[#64748b] font-mono">
+                    <div className="w-3.5 h-3.5 border-2 border-[#1a1e26] border-t-[#60a5fa] rounded-full animate-spin flex-shrink-0" />
+                    <span>{msg.status}</span>
+                  </div>
+                ) : null}
               </div>
             ))}
 
             {agentLoading && (
               <div className="p-3 bg-[#08090a] border border-[#161922] rounded-lg text-[12px] font-mono text-[#60a5fa] flex items-center gap-2 animate-pulse">
-                <span className="animate-spin">⚡</span> Archon Agent synthesizing solution...
+                <Icons.Sparkles />
+                <span>Archon Agent synthesizing solution...</span>
               </div>
             )}
           </div>
@@ -2034,27 +2595,31 @@ function VSCodeAgentIDE({
                 rows={2}
                 className="w-full bg-transparent text-[#cbd5e1] p-2.5 text-[12px] font-mono focus:outline-none resize-none custom-scrollbar placeholder-[#475569] select-text"
               />
-              <div className="flex justify-between items-center px-2.5 pb-2 select-none">
-                <select
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  className="bg-[#12151c] text-[#8b949e] text-[10px] font-mono rounded px-1.5 py-0.5 border border-[#1e232e] focus:outline-none cursor-pointer"
-                >
-                  {models.map(m => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
+              <div className="flex justify-between items-center gap-2 px-2.5 pb-2 select-none min-w-0">
+                <div className="min-w-0 flex-1 max-w-[200px]">
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    className="w-full bg-[#12151c] hover:bg-[#161a24] text-[#8b949e] hover:text-[#c8ccd0] text-[10.5px] font-mono rounded px-2 py-1 border border-[#1e232e] focus:outline-none cursor-pointer truncate"
+                    title={selectedModel}
+                  >
+                    {models.map(m => (
+                      <option key={m} value={m} className="bg-[#0c0e12]">{m}</option>
+                    ))}
+                  </select>
+                </div>
 
                 <button
                   onClick={() => handleSendAgentMessage()}
                   disabled={!agentInput.trim() || agentLoading}
-                  className={`px-3 py-1 rounded text-[11px] font-mono font-bold transition-all cursor-pointer ${
+                  className={`flex-shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-lg text-[11px] font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                     agentInput.trim() && !agentLoading
-                      ? 'bg-[#3b82f6] hover:bg-[#2563eb] text-white shadow-md'
+                      ? 'bg-[#3b82f6] hover:bg-[#2563eb] text-white shadow-md shadow-[#3b82f6]/20'
                       : 'bg-[#1e293b] text-[#64748b] cursor-not-allowed'
                   }`}
                 >
-                  Send ↵
+                  <span>Send</span>
+                  <span className="text-[9.5px] opacity-75">↵</span>
                 </button>
               </div>
             </div>
@@ -2133,9 +2698,9 @@ function VSCodeAgentIDE({
                 <button
                   onClick={() => handleOpenProject(projectPathInput, true)}
                   title="Create folder and initialize project if missing"
-                  className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-3.5 py-2 rounded-lg text-[12px] font-mono font-semibold transition-all cursor-pointer flex items-center gap-1"
+                  className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-3.5 py-2 rounded-lg text-[12px] font-mono font-semibold transition-all cursor-pointer flex items-center gap-1.5"
                 >
-                  <span>✨</span>
+                  <Icons.Sparkles />
                   <span>Create & Open</span>
                 </button>
               </div>
@@ -2172,6 +2737,101 @@ function VSCodeAgentIDE({
           </div>
         </div>
       )}
+
+      {/* ── Quick Open (Ctrl+P) Search Modal ────────────────────── */}
+      {showQuickOpen && (
+        <div 
+          className="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-start justify-center pt-24 p-4"
+          onClick={() => setShowQuickOpen(false)}
+        >
+          <div 
+            className="bg-[#0c0e12] border border-[#1e232e] rounded-xl max-w-[620px] w-full shadow-2xl overflow-hidden shadow-black/80 flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-3 border-b border-[#161922] bg-[#090b0e] flex items-center gap-2">
+              <span className="text-[#60a5fa]"><Icons.Search /></span>
+              <input
+                ref={quickOpenInputRef}
+                type="text"
+                value={quickOpenQuery}
+                onChange={(e) => {
+                  setQuickOpenQuery(e.target.value);
+                  setQuickOpenIndex(0);
+                }}
+                onKeyDown={(e) => {
+                  const filtered = allFiles.filter(f => 
+                    !quickOpenQuery.trim() || 
+                    f.path.toLowerCase().includes(quickOpenQuery.toLowerCase()) || 
+                    f.name.toLowerCase().includes(quickOpenQuery.toLowerCase())
+                  );
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setQuickOpenIndex(prev => Math.min(prev + 1, Math.max(0, filtered.length - 1)));
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setQuickOpenIndex(prev => Math.max(0, prev - 1));
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (filtered.length > 0 && filtered[quickOpenIndex]) {
+                      handleOpenFile(filtered[quickOpenIndex].path);
+                      setShowQuickOpen(false);
+                    }
+                  } else if (e.key === 'Escape') {
+                    setShowQuickOpen(false);
+                  }
+                }}
+                placeholder="Type a file name to search and open (e.g. main.py, page.tsx, docker-compose.yml)..."
+                className="w-full bg-transparent text-[12.5px] font-mono text-[#e2e5ea] focus:outline-none placeholder-[#475569]"
+              />
+              <span className="text-[10px] font-mono text-[#64748b] bg-[#12151c] px-2 py-0.5 rounded border border-[#1e232e]">
+                ESC to close
+              </span>
+            </div>
+
+            <div className="max-h-[340px] overflow-y-auto custom-scrollbar p-1.5 space-y-0.5">
+              {(() => {
+                const filtered = allFiles.filter(f => 
+                  !quickOpenQuery.trim() || 
+                  f.path.toLowerCase().includes(quickOpenQuery.toLowerCase()) || 
+                  f.name.toLowerCase().includes(quickOpenQuery.toLowerCase())
+                );
+                if (filtered.length === 0) {
+                  return (
+                    <div className="p-4 text-center text-[11.5px] font-mono text-[#64748b]">
+                      No matching files found in workspace.
+                    </div>
+                  );
+                }
+                return filtered.slice(0, 50).map((file, idx) => {
+                  const isSelected = idx === quickOpenIndex;
+                  return (
+                    <div
+                      key={file.path}
+                      onClick={() => {
+                        handleOpenFile(file.path);
+                        setShowQuickOpen(false);
+                      }}
+                      onMouseEnter={() => setQuickOpenIndex(idx)}
+                      className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer font-mono text-[12px] transition-colors ${
+                        isSelected 
+                          ? 'bg-[#1a2234] text-[#60a5fa] border border-[#3b82f6]/30' 
+                          : 'text-[#9ca3af] hover:bg-[#12151c] hover:text-[#e2e5ea]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        {getFileIcon(file.name)}
+                        <span className="font-medium text-[#e2e5ea]">{file.name}</span>
+                        <span className="text-[10.5px] text-[#64748b] truncate">{file.path}</span>
+                      </div>
+                      <span className="text-[9.5px] text-[#475569] uppercase font-bold">{file.extension || 'file'}</span>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2181,14 +2841,25 @@ export default function Home() {
   const [appMode, setAppMode] = useState<'api_copilot' | 'copilot_agent'>('api_copilot');
 
   // Shared Global State
-  const [models, setModels] = useState<string[]>([]);
+  const [models, setModels] = useState<string[]>(["gemma3:4b", "gemma3:12b", "codellama:7b-instruct"]);
   const [selectedModel, setSelectedModel] = useState<string>("gemma3:4b");
+  const [comparisonModel, setComparisonModel] = useState<string>("codellama:7b-instruct");
+  const [compareMode, setCompareMode] = useState<boolean>(false);
   const [dbData, setDbData] = useState<{ fixed_chunks: string[], semantic_chunks: string[] }>({ fixed_chunks: [], semantic_chunks: [] });
   
-  // API Copilot Original View State
+  // Configuration Settings State
+  const [showConfigModal, setShowConfigModal] = useState<boolean>(false);
+  const [chunkingStrategy, setChunkingStrategy] = useState<'semantic' | 'fixed' | 'openapi'>('semantic');
+  const [searchStrategy, setSearchStrategy] = useState<'hybrid' | 'bm25' | 'dense'>('hybrid');
+  const [topK, setTopK] = useState<number>(5);
+
+  // RAG View State
   const [query, setQuery] = useState('');
-  const [generation, setGeneration] = useState('');
+  const [generationA, setGenerationA] = useState('');
+  const [generationB, setGenerationB] = useState('');
   const [loading, setLoading] = useState(false);
+  const [metricsA, setMetricsA] = useState<{ latencyMs: number; tokens: number } | null>(null);
+  const [metricsB, setMetricsB] = useState<{ latencyMs: number; tokens: number } | null>(null);
   const [pipelineStage, setPipelineStage] = useState<number>(-1);
   const [activeTab, setActiveTab] = useState<'terminal' | 'search' | 'db'>('terminal');
   const [searchData, setSearchData] = useState<{ bm25: any[]; dense: any[]; cross_encoder: any[] } | null>(null);
@@ -2199,35 +2870,144 @@ export default function Home() {
   const [showModal, setShowModal] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const outputRef = useRef<HTMLDivElement>(null);
+  const outputRefA = useRef<HTMLDivElement>(null);
+  const outputRefB = useRef<HTMLDivElement>(null);
 
+  // Resilient Data Loading with Automatic Retry
   useEffect(() => {
-    fetch(`${API_BASE}/api/models`)
-      .then(res => res.json())
-      .then(data => {
-        setModels(data.models || []);
-        if (data.models && data.models.length > 0) setSelectedModel(data.models[0]);
-      })
-      .catch(err => console.error("Could not load models"));
+    let isMounted = true;
 
-    fetch(`${API_BASE}/api/database`)
-      .then(res => res.json())
-      .then(data => setDbData(data))
-      .catch(err => console.error("Could not load DB data"));
+    const fetchModels = async (retries = 3) => {
+      try {
+        const res = await fetch(`${API_BASE}/api/models`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (isMounted && data.models && data.models.length > 0) {
+          setModels(data.models);
+          if (!selectedModel || !data.models.includes(selectedModel)) {
+            setSelectedModel(data.models[0]);
+          }
+          if (data.models.length > 1 && (!comparisonModel || !data.models.includes(comparisonModel))) {
+            setComparisonModel(data.models[1]);
+          }
+        }
+      } catch (err) {
+        if (retries > 0) {
+          setTimeout(() => fetchModels(retries - 1), 2000);
+        }
+      }
+    };
+
+    const fetchDatabase = async (retries = 3) => {
+      try {
+        const res = await fetch(`${API_BASE}/api/database`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (isMounted) setDbData(data);
+      } catch (err) {
+        if (retries > 0) {
+          setTimeout(() => fetchDatabase(retries - 1), 2000);
+        }
+      }
+    };
+
+    fetchModels();
+    fetchDatabase();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // Auto-scroll output when tokens stream in
+  // Auto-scroll outputs when tokens stream in
   useEffect(() => {
-    if (outputRef.current) {
-      outputRef.current.scrollTop = outputRef.current.scrollHeight;
+    if (outputRefA.current) {
+      outputRefA.current.scrollTop = outputRefA.current.scrollHeight;
     }
-  }, [generation]);
+  }, [generationA]);
+
+  useEffect(() => {
+    if (outputRefB.current) {
+      outputRefB.current.scrollTop = outputRefB.current.scrollHeight;
+    }
+  }, [generationB]);
+
+  // Stream reader helper for model generation
+  const streamModelGeneration = async (
+    targetModel: string,
+    onToken: (fullText: string) => void,
+    onComplete: (metrics: { latencyMs: number; tokens: number }) => void,
+    onError: (err: string) => void
+  ) => {
+    const startTime = performance.now();
+    let tokenCount = 0;
+    let accumulatedText = '';
+
+    try {
+      const res = await fetch(`${API_BASE}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query,
+          model: targetModel,
+          top_k: topK,
+          search_strategy: searchStrategy
+        })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ detail: 'Service unreachable' }));
+        onError(errData.detail || 'Model generation failed.');
+        return;
+      }
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                if (data.token) {
+                  tokenCount++;
+                  accumulatedText += data.token;
+                  onToken(accumulatedText);
+                }
+                if (data.done) break;
+                if (data.error) {
+                  accumulatedText += `\n\n> ⚠️ **Error:** ${data.error}`;
+                  onToken(accumulatedText);
+                  break;
+                }
+              } catch (e) {}
+            }
+          }
+        }
+      }
+
+      const elapsed = Math.round(performance.now() - startTime);
+      onComplete({ latencyMs: elapsed, tokens: tokenCount });
+    } catch (e: any) {
+      onError(`Connection error to ${targetModel}`);
+    }
+  };
 
   const handleProcess = async () => {
-    if (!query) return;
+    if (!query.trim()) return;
     setLoading(true);
     setSearchData(null);
-    setGeneration('');
+    setGenerationA('');
+    setGenerationB('');
+    setMetricsA(null);
+    setMetricsB(null);
     setPipelineStage(0);
     setActiveTab('terminal');
 
@@ -2237,72 +3017,51 @@ export default function Home() {
       const searchRes = await fetch(`${API_BASE}/api/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, model: selectedModel })
+        body: JSON.stringify({ query, model: selectedModel, top_k: topK })
       });
       const searchDataResult = await searchRes.json();
       
       // Stage 2: Dense Vector Proximity
       setPipelineStage(2);
-      await new Promise(r => setTimeout(r, 250));
+      await new Promise(r => setTimeout(r, 200));
       
       // Stage 3: Cross-Encoder Re-Ranking
       setPipelineStage(3);
       setSearchData(searchDataResult);
-      await new Promise(r => setTimeout(r, 250));
+      await new Promise(r => setTimeout(r, 200));
 
       // Stage 4: LLM Generation
       setPipelineStage(4);
 
-      const genRes = await fetch(`${API_BASE}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, model: selectedModel })
-      });
-
-      if (!genRes.ok) {
-        const errData = await genRes.json();
-        setGeneration(`**Backend Error:** ${errData.detail || 'Unknown error occurred.'}`);
-        setPipelineStage(-1);
-        setLoading(false);
-        return;
-      }
-
-      // Read SSE stream
-      const reader = genRes.body?.getReader();
-      const decoder = new TextDecoder();
-      let fullText = '';
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.slice(6));
-                if (data.token) {
-                  fullText += data.token;
-                  setGeneration(fullText);
-                }
-                if (data.done) break;
-                if (data.error) {
-                  setGeneration(`\n\n> ⚠️ **Error:** ${data.error}`);
-                  break;
-                }
-              } catch (e) {}
-            }
-          }
-        }
+      if (compareMode) {
+        // Run Model A and Model B in Parallel Side-by-Side
+        await Promise.all([
+          streamModelGeneration(
+            selectedModel,
+            (text) => setGenerationA(text),
+            (m) => setMetricsA(m),
+            (err) => setGenerationA(`❌ **Error (${selectedModel}):** ${err}`)
+          ),
+          streamModelGeneration(
+            comparisonModel,
+            (text) => setGenerationB(text),
+            (m) => setMetricsB(m),
+            (err) => setGenerationB(`❌ **Error (${comparisonModel}):** ${err}`)
+          )
+        ]);
+      } else {
+        // Single Model Stream
+        await streamModelGeneration(
+          selectedModel,
+          (text) => setGenerationA(text),
+          (m) => setMetricsA(m),
+          (err) => setGenerationA(`❌ **Error:** ${err}`)
+        );
       }
 
       setPipelineStage(-1);
     } catch (e) {
-      console.error(e);
-      setGeneration(`❌ **Connection error:** Could not reach the API Gateway on \`${API_BASE}\`.`);
+      setGenerationA(`❌ **Connection error:** Could not reach API Gateway on \`${API_BASE}\`.`);
       setPipelineStage(-1);
     }
     setLoading(false);
@@ -2341,7 +3100,7 @@ export default function Home() {
   };
 
   const tabs = [
-    { id: 'terminal', label: 'Code Synthesis', icon: '▸' },
+    { id: 'terminal', label: compareMode ? 'Model Comparison' : 'Code Synthesis', icon: '▸' },
     { id: 'search', label: 'Search Diagnostics', icon: '◈' },
     { id: 'db', label: 'Knowledge Base', icon: '◆' },
   ];
@@ -2397,7 +3156,7 @@ export default function Home() {
 
           <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#10b981]/10 border border-[#10b981]/25 rounded-lg text-[11px] font-mono text-[#10b981]">
             <div className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
-            <span>Mesh Online</span>
+            <span>online</span>
           </div>
         </div>
       </header>
@@ -2422,7 +3181,7 @@ export default function Home() {
               onClick={() => setShowModal(false)}
             >
               <div 
-                className="bg-[#0e1015] border border-[#1a1e26] rounded-xl max-w-3xl w-full max-h-[75vh] flex flex-col"
+                className="bg-[#0e1015] border border-[#1a1e26] rounded-xl max-w-3xl w-full max-h-[75vh] flex flex-col shadow-2xl"
                 onClick={e => e.stopPropagation()}
               >
                 <div className="px-6 py-5 border-b border-[#1a1e26] flex justify-between items-center">
@@ -2457,11 +3216,124 @@ export default function Home() {
             </div>
           )}
 
+          {/* ── Configure Strategy & Hyperparameters Modal ─────────── */}
+          {showConfigModal && (
+            <div 
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+              onClick={() => setShowConfigModal(false)}
+            >
+              <div 
+                className="bg-[#0e1015] border border-[#1a1e26] rounded-xl max-w-lg w-full p-6 space-y-5 shadow-2xl"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex justify-between items-center pb-3 border-b border-[#1a1e26]">
+                  <div className="flex items-center gap-2">
+                    <Icons.Settings />
+                    <h3 className="text-[14px] font-mono font-semibold text-[#e2e5ea]">
+                      RAG Retrieval Configuration
+                    </h3>
+                  </div>
+                  <button 
+                    onClick={() => setShowConfigModal(false)}
+                    className="text-[#4a5060] hover:text-[#c8ccd0] p-1 cursor-pointer rounded hover:bg-[#1a1e26]"
+                  >
+                    <Icons.Close />
+                  </button>
+                </div>
+
+                {/* Chunking Strategy Option */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-mono uppercase tracking-wider text-[#64748b] font-semibold">
+                    Chunking Strategy
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: 'semantic', label: 'Semantic', desc: 'Context-aware splits' },
+                      { id: 'fixed', label: 'Fixed Window', desc: '500-token chunks' },
+                      { id: 'openapi', label: 'OpenAPI Spec', desc: 'Endpoint boundaries' }
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setChunkingStrategy(opt.id as any)}
+                        className={`p-2.5 rounded-lg border text-left font-mono transition-all cursor-pointer ${
+                          chunkingStrategy === opt.id
+                            ? 'border-[#3b82f6] bg-[#3b82f6]/10 text-[#e2e5ea] shadow-sm'
+                            : 'border-[#1a1e26] bg-[#08090a] text-[#64748b] hover:text-[#8b92a0] hover:border-[#282e3a]'
+                        }`}
+                      >
+                        <div className="text-[11px] font-semibold">{opt.label}</div>
+                        <div className="text-[9.5px] text-[#475569] mt-0.5">{opt.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Search Strategy Option */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-mono uppercase tracking-wider text-[#64748b] font-semibold">
+                    Retrieval & Ranking Strategy
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: 'hybrid', label: 'Hybrid Re-Rank', desc: 'BM25 + Dense + Cross' },
+                      { id: 'dense', label: 'Dense Vector', desc: 'ChromaDB BGE-small' },
+                      { id: 'bm25', label: 'BM25 Lexical', desc: 'Exact keyword match' }
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setSearchStrategy(opt.id as any)}
+                        className={`p-2.5 rounded-lg border text-left font-mono transition-all cursor-pointer ${
+                          searchStrategy === opt.id
+                            ? 'border-[#3b82f6] bg-[#3b82f6]/10 text-[#e2e5ea] shadow-sm'
+                            : 'border-[#1a1e26] bg-[#08090a] text-[#64748b] hover:text-[#8b92a0] hover:border-[#282e3a]'
+                        }`}
+                      >
+                        <div className="text-[11px] font-semibold">{opt.label}</div>
+                        <div className="text-[9.5px] text-[#475569] mt-0.5">{opt.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Top-K Slider */}
+                <div className="space-y-2 pt-2 border-t border-[#1a1e26]">
+                  <div className="flex justify-between items-center text-[11px] font-mono">
+                    <span className="text-[#64748b] uppercase tracking-wider font-semibold">Top-K Context Chunks</span>
+                    <span className="text-[#60a5fa] font-bold">{topK}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={topK}
+                    onChange={(e) => setTopK(parseInt(e.target.value))}
+                    className="w-full h-1.5 bg-[#161b24] rounded-lg appearance-none cursor-pointer accent-[#3b82f6]"
+                  />
+                  <div className="flex justify-between text-[9.5px] font-mono text-[#475569]">
+                    <span>1 (High Precision)</span>
+                    <span>10 (Broad Context)</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-3 border-t border-[#1a1e26]">
+                  <button
+                    onClick={() => setShowConfigModal(false)}
+                    className="bg-[#1e293b] hover:bg-[#334155] text-[#e2e5ea] px-5 py-2 rounded-lg text-[12px] font-mono font-semibold transition-all cursor-pointer border border-[#334155]"
+                  >
+                    Apply Configuration
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="max-w-[1200px] mx-auto">
             
             {/* Header */}
             <header className="mb-8">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b border-[#1a1e26]">
                 <div>
                   <div className="flex items-center gap-3 mb-2.5">
                     <div className="w-2 h-2 rounded-full bg-[#3b82f6] animate-pulse" />
@@ -2475,10 +3347,17 @@ export default function Home() {
                       Archon RAG
                     </h1>
                   </div>
-                  <p className="text-[13px] text-[#4a5060] mt-1.5 font-mono">Hybrid retrieval (BM25 + Dense + Cross-Encoder) & Code Synthesis</p>
+                  <p className="text-[13px] text-[#4a5060] mt-1.5 font-mono">
+                    {searchStrategy === 'hybrid'
+                      ? 'Hybrid retrieval (BM25 + Dense + Cross-Encoder) & Code Synthesis'
+                      : searchStrategy === 'dense'
+                        ? 'ChromaDB Dense Vector Embedding Search & Code Synthesis'
+                        : 'Okapi BM25 Lexical Keyword Search & Code Synthesis'}
+                  </p>
                 </div>
                 
-                <div className="flex gap-3 items-end">
+                <div className="flex flex-wrap gap-2.5 items-end">
+                  {/* Upload Button */}
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-mono font-medium text-[#4a5060] tracking-wider uppercase">Ingest Spec</label>
                     <div>
@@ -2492,7 +3371,7 @@ export default function Home() {
                       />
                       <label 
                         htmlFor="file-upload" 
-                        className="cursor-pointer flex items-center gap-2 bg-[#0e1015] border border-[#1a1e26] hover:border-[#282e3a] text-[#6b7280] hover:text-[#c8ccd0] px-4 py-2 rounded-lg text-sm font-mono transition-all duration-300"
+                        className="cursor-pointer flex items-center gap-2 bg-[#0e1015] border border-[#1a1e26] hover:border-[#282e3a] text-[#6b7280] hover:text-[#c8ccd0] px-3.5 py-2 rounded-lg text-[12.5px] font-mono transition-all duration-300"
                       >
                         {uploading ? (
                           <span className="flex items-center gap-2"><span className="animate-spin text-[#3b82f6]">⟳</span>Ingesting</span>
@@ -2503,24 +3382,65 @@ export default function Home() {
                     </div>
                   </div>
 
+                  {/* Active Model Selector A */}
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-mono font-medium text-[#4a5060] tracking-wider uppercase">Active Model</label>
                     <select 
                       value={selectedModel} 
                       onChange={e => setSelectedModel(e.target.value)}
-                      className="bg-[#0e1015] border border-[#1a1e26] hover:border-[#282e3a] text-[#c8ccd0] py-2 px-4 rounded-lg text-sm font-mono outline-none focus:border-[#282e3a] transition-all duration-300 cursor-pointer"
+                      className="bg-[#0e1015] border border-[#1a1e26] hover:border-[#282e3a] text-[#c8ccd0] py-2 px-3.5 rounded-lg text-[12.5px] font-mono outline-none focus:border-[#3b82f6]/50 transition-all duration-300 cursor-pointer max-w-[190px] truncate"
+                      title={selectedModel}
                     >
-                      {models.length > 0 ? (
-                        models.map(m => <option key={m} value={m} className="bg-[#0e1015]">{m}</option>)
-                      ) : (
-                        <option value="gemma3:4b" className="bg-[#0e1015]">gemma3:4b</option>
-                      )}
+                      {models.map(m => (
+                        <option key={m} value={m} className="bg-[#0e1015]">{m}</option>
+                      ))}
                     </select>
                   </div>
+
+                  {/* Model B Selector (When Comparison is Active) */}
+                  {compareMode && (
+                    <div className="flex flex-col gap-1.5 animate-fade-in">
+                      <label className="text-[10px] font-mono font-medium text-[#a78bfa] tracking-wider uppercase">Compare Model</label>
+                      <select 
+                        value={comparisonModel} 
+                        onChange={e => setComparisonModel(e.target.value)}
+                        className="bg-[#0e1015] border border-[#a78bfa]/40 text-[#a78bfa] py-2 px-3.5 rounded-lg text-[12.5px] font-mono outline-none focus:border-[#a78bfa] transition-all duration-300 cursor-pointer max-w-[190px] truncate shadow-sm"
+                        title={comparisonModel}
+                      >
+                        {models.map(m => (
+                          <option key={m} value={m} className="bg-[#0e1015]">{m}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Side-by-Side Model Comparison Toggle Switch */}
+                  <button
+                    type="button"
+                    onClick={() => setCompareMode(!compareMode)}
+                    title="Toggle Side-by-Side Dual Model Comparison"
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-[12px] font-mono transition-all duration-200 cursor-pointer border ${
+                      compareMode
+                        ? 'bg-[#3b82f6]/20 text-[#60a5fa] border-[#3b82f6]/50 shadow-md font-bold'
+                        : 'bg-[#0e1015] border-[#1a1e26] hover:border-[#282e3a] text-[#6b7280] hover:text-[#c8ccd0]'
+                    }`}
+                  >
+                    <Icons.Compare />
+                    <span>Compare: {compareMode ? 'ON' : 'OFF'}</span>
+                  </button>
+
+                  {/* Configure Option Button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowConfigModal(true)}
+                    title="Configure Chunking & Retrieval Strategy"
+                    className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-[12px] font-mono bg-[#0e1015] border border-[#1a1e26] hover:border-[#282e3a] text-[#6b7280] hover:text-[#c8ccd0] transition-all duration-200 cursor-pointer"
+                  >
+                    <Icons.Settings />
+                    <span>Configure</span>
+                  </button>
                 </div>
               </div>
-              
-              <div className="h-px bg-gradient-to-r from-[#1a1e26] via-[#282e3a] to-[#1a1e26] mt-6" />
             </header>
 
             {/* Global Interactive Pipeline Visualizer */}
@@ -2531,8 +3451,8 @@ export default function Home() {
 
             {/* Command Input Bar */}
             <div className={`mb-6 transition-all duration-500 ${inputFocused ? 'scale-[1.003]' : ''}`}>
-              <div className={`bg-[#0e1015] border rounded-xl p-1.5 pl-5 flex items-center transition-all duration-500 ${inputFocused ? 'border-[#282e3a] shadow-[0_0_30px_rgba(59,130,246,0.05)]' : 'border-[#1a1e26]'}`}>
-                <span className="text-[#282e3a] mr-3 font-mono text-sm select-none">▸</span>
+              <div className={`bg-[#0e1015] border rounded-xl p-1.5 pl-5 flex items-center transition-all duration-500 ${inputFocused ? 'border-[#3b82f6]/50 shadow-[0_0_30px_rgba(59,130,246,0.08)]' : 'border-[#1a1e26]'}`}>
+                <span className="text-[#3b82f6] mr-3 font-mono text-sm select-none">▸</span>
                 <input
                   type="text"
                   value={query}
@@ -2541,7 +3461,7 @@ export default function Home() {
                   onBlur={() => setInputFocused(false)}
                   onKeyDown={e => e.key === 'Enter' && handleProcess()}
                   placeholder="Ask any API question… e.g. How do I create a customer charge in Stripe?"
-                  className="bg-transparent border-none outline-none text-[#e2e5ea] placeholder-[#282e3a] flex-1 text-sm font-mono leading-relaxed"
+                  className="bg-transparent border-none outline-none text-[#e2e5ea] placeholder-[#4a5060] flex-1 text-sm font-mono leading-relaxed"
                 />
                 <button
                   onClick={handleProcess}
@@ -2561,8 +3481,8 @@ export default function Home() {
               </div>
 
               {/* Sample Queries */}
-              <div className="flex gap-2 mt-2.5 overflow-x-auto pb-1 text-[11px] font-mono text-[#333a48] custom-scrollbar">
-                <span className="text-[#282e3a] select-none py-0.5">Try:</span>
+              <div className="flex gap-2 mt-2.5 overflow-x-auto pb-1 text-[11px] font-mono text-[#4a5060] custom-scrollbar">
+                <span className="text-[#333a48] select-none py-0.5">Try:</span>
                 {[
                   "How to charge a card in Stripe?",
                   "Twilio send SMS endpoint & parameters",
@@ -2572,7 +3492,7 @@ export default function Home() {
                   <button
                     key={i}
                     onClick={() => setQuery(sample)}
-                    className="hover:text-[#6b7280] transition-colors duration-300 whitespace-nowrap bg-[#0a0c10] hover:bg-[#0e1015] px-2.5 py-0.5 rounded border border-[#14171e] hover:border-[#1a1e26] cursor-pointer"
+                    className="hover:text-[#8b92a0] transition-colors duration-300 whitespace-nowrap bg-[#0a0c10] hover:bg-[#0e1015] px-2.5 py-0.5 rounded border border-[#14171e] hover:border-[#1a1e26] cursor-pointer"
                   >
                     {sample}
                   </button>
@@ -2606,42 +3526,117 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* Tab 1: Terminal Code Synthesis View */}
+              {/* Tab 1: Code Synthesis Output / Side-by-Side Comparison */}
               {activeTab === 'terminal' && (
                 <div className="p-6">
-                  <div className="bg-[#08090a] border border-[#1a1e26] rounded-lg overflow-hidden">
-                    <div className="flex justify-between items-center px-4 py-2.5 border-b border-[#1a1e26] bg-[#0a0c10]/60">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#1a1e26]" />
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#1a1e26]" />
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#1a1e26]" />
-                        <span className="text-[11px] font-mono text-[#333a48] ml-2">archon-copilot ~ output</span>
+                  {compareMode ? (
+                    /* ── Side-by-Side Dual Model Comparison Panels ── */
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      
+                      {/* Left Column: Model A */}
+                      <div className="bg-[#08090a] border border-[#1a1e26] rounded-lg overflow-hidden flex flex-col">
+                        <div className="flex justify-between items-center px-4 py-2.5 border-b border-[#1a1e26] bg-[#0a0c10]/80">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-mono font-bold text-[#60a5fa]">{selectedModel}</span>
+                            <span className="text-[9.5px] font-mono text-[#3b82f6] bg-[#3b82f6]/10 px-1.5 py-0.2 rounded border border-[#3b82f6]/20">Model A</span>
+                          </div>
+                          {metricsA && (
+                            <div className="text-[10px] font-mono text-[#4a5060] flex items-center gap-2">
+                              <span>{metricsA.tokens} tokens</span>
+                              <span>·</span>
+                              <span>{metricsA.latencyMs}ms</span>
+                            </div>
+                          )}
+                        </div>
+                        <div ref={outputRefA} className="p-5 overflow-y-auto custom-scrollbar" style={{ minHeight: generationA || loading ? '240px' : '180px', maxHeight: '550px' }}>
+                          {generationA ? (
+                            <FormattedMarkdown content={generationA} />
+                          ) : loading ? (
+                            <div className="flex flex-col items-center justify-center h-[180px] text-[#4a5060] font-mono text-xs space-y-3">
+                              <div className="w-5 h-5 border-2 border-[#1a1e26] border-t-[#3b82f6] rounded-full animate-spin" />
+                              <span>Generating with {selectedModel}…</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center h-[140px] text-[#333a48] font-mono text-xs">
+                              Enter a query above to execute comparison synthesis.
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        {loading && (
-                          <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#3b82f6]">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#3b82f6] animate-pulse" />
-                            Streaming…
+
+                      {/* Right Column: Model B */}
+                      <div className="bg-[#08090a] border border-[#1a1e26] rounded-lg overflow-hidden flex flex-col">
+                        <div className="flex justify-between items-center px-4 py-2.5 border-b border-[#1a1e26] bg-[#0a0c10]/80">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-mono font-bold text-[#a78bfa]">{comparisonModel}</span>
+                            <span className="text-[9.5px] font-mono text-[#a78bfa] bg-[#a78bfa]/10 px-1.5 py-0.2 rounded border border-[#a78bfa]/20">Model B</span>
+                          </div>
+                          {metricsB && (
+                            <div className="text-[10px] font-mono text-[#4a5060] flex items-center gap-2">
+                              <span>{metricsB.tokens} tokens</span>
+                              <span>·</span>
+                              <span>{metricsB.latencyMs}ms</span>
+                            </div>
+                          )}
+                        </div>
+                        <div ref={outputRefB} className="p-5 overflow-y-auto custom-scrollbar" style={{ minHeight: generationB || loading ? '240px' : '180px', maxHeight: '550px' }}>
+                          {generationB ? (
+                            <FormattedMarkdown content={generationB} />
+                          ) : loading ? (
+                            <div className="flex flex-col items-center justify-center h-[180px] text-[#4a5060] font-mono text-xs space-y-3">
+                              <div className="w-5 h-5 border-2 border-[#1a1e26] border-t-[#a78bfa] rounded-full animate-spin" />
+                              <span>Generating with {comparisonModel}…</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center h-[140px] text-[#333a48] font-mono text-xs">
+                              Enter a query above to execute comparison synthesis.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                    </div>
+                  ) : (
+                    /* ── Single Model Synthesis View ── */
+                    <div className="bg-[#08090a] border border-[#1a1e26] rounded-lg overflow-hidden">
+                      <div className="flex justify-between items-center px-4 py-2.5 border-b border-[#1a1e26] bg-[#0a0c10]/60">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full bg-[#1a1e26]" />
+                          <div className="w-2.5 h-2.5 rounded-full bg-[#1a1e26]" />
+                          <div className="w-2.5 h-2.5 rounded-full bg-[#1a1e26]" />
+                          <span className="text-[11px] font-mono text-[#333a48] ml-2">archon-copilot ~ output</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {loading && (
+                            <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#3b82f6]">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#3b82f6] animate-pulse" />
+                              Streaming…
+                            </div>
+                          )}
+                          {metricsA && (
+                            <span className="text-[10px] font-mono text-[#4a5060]">
+                              {metricsA.tokens} tokens · {metricsA.latencyMs}ms
+                            </span>
+                          )}
+                          <span className="text-[10px] font-mono text-[#282e3a]">{selectedModel}</span>
+                        </div>
+                      </div>
+                      <div ref={outputRefA} className="p-6 min-h-[350px] max-h-[550px] overflow-y-auto custom-scrollbar">
+                        {generationA ? (
+                          <FormattedMarkdown content={generationA} />
+                        ) : loading ? (
+                          <div className="flex flex-col items-center justify-center h-[300px] text-[#333a48] font-mono text-xs space-y-3">
+                            <div className="w-6 h-6 border-2 border-[#1a1e26] border-t-[#3b82f6] rounded-full animate-spin" />
+                            <span>Generating endpoint synthesis…</span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-[300px] text-[#282e3a] font-mono text-xs space-y-2">
+                            <span>$ Enter a query above to execute hybrid search & synthesis.</span>
                           </div>
                         )}
-                        <span className="text-[10px] font-mono text-[#282e3a]">{selectedModel}</span>
                       </div>
                     </div>
-                    <div ref={outputRef} className="p-6 min-h-[350px] max-h-[550px] overflow-y-auto custom-scrollbar">
-                      {generation ? (
-                        <FormattedMarkdown content={generation} />
-                      ) : loading ? (
-                        <div className="flex flex-col items-center justify-center h-[300px] text-[#333a48] font-mono text-xs space-y-3">
-                          <div className="w-6 h-6 border-2 border-[#1a1e26] border-t-[#3b82f6] rounded-full animate-spin" />
-                          <span>Generating endpoint synthesis…</span>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center h-[300px] text-[#282e3a] font-mono text-xs space-y-2">
-                          <span>$ Enter a query above to execute hybrid search & synthesis.</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  )}
                 </div>
               )}
 
@@ -2669,7 +3664,7 @@ export default function Home() {
                             </div>
                             <p className="text-[10px] text-[#4a5060] mt-0.5 font-mono">Lexical keyword matching</p>
                           </div>
-                          <span className="text-[9px] font-mono font-medium tracking-[0.15em] text-[#4a5060] bg-[#12151c] px-2 py-0.5 rounded border border-[#1a1e26]">TOP 5</span>
+                          <span className="text-[9px] font-mono font-medium tracking-[0.15em] text-[#4a5060] bg-[#12151c] px-2 py-0.5 rounded border border-[#1a1e26]">TOP {topK}</span>
                         </div>
                         <div className="p-3 flex-1 overflow-y-auto h-[440px] space-y-2.5 custom-scrollbar">
                           {Array.isArray(searchData.bm25) ? searchData.bm25.map((item: any, i: number) => (
@@ -2698,7 +3693,7 @@ export default function Home() {
                             </div>
                             <p className="text-[10px] text-[#4a5060] mt-0.5 font-mono">BGE-small (ChromaDB)</p>
                           </div>
-                          <span className="text-[9px] font-mono font-medium tracking-[0.15em] text-[#4a5060] bg-[#12151c] px-2 py-0.5 rounded border border-[#1a1e26]">TOP 5</span>
+                          <span className="text-[9px] font-mono font-medium tracking-[0.15em] text-[#4a5060] bg-[#12151c] px-2 py-0.5 rounded border border-[#1a1e26]">TOP {topK}</span>
                         </div>
                         <div className="p-3 flex-1 overflow-y-auto h-[440px] space-y-2.5 custom-scrollbar">
                           {Array.isArray(searchData.dense) ? searchData.dense.map((item: any, i: number) => (
@@ -2719,9 +3714,6 @@ export default function Home() {
                           ? 'border-[#10b981] shadow-[0_0_30px_rgba(16,185,129,0.2)] ring-1 ring-[#10b981]/50'
                           : 'border-[#10b981]/20 hover:border-[#10b981]/35'
                       }`}>
-                        <div className="absolute top-0 right-0 text-[8px] font-mono font-bold px-2.5 py-1 text-[#10b981] bg-[#10b981]/10 border-b border-l border-[#10b981]/20 rounded-bl-md tracking-[0.15em] uppercase">
-                          Winner
-                        </div>
                         <div className="border-b border-[#10b981]/15 px-4 py-3.5 flex justify-between items-center bg-[#10b981]/5">
                           <div>
                             <div className="flex items-center gap-1.5">
@@ -2730,7 +3722,7 @@ export default function Home() {
                             </div>
                             <p className="text-[10px] text-[#10b981]/60 mt-0.5 font-mono">MS-Marco Deep Re-Ranking</p>
                           </div>
-                          <span className="text-[9px] font-mono font-medium tracking-[0.15em] text-[#10b981]/60 bg-[#10b981]/10 px-2 py-0.5 rounded border border-[#10b981]/20 mr-12">TOP 5</span>
+                          <span className="text-[9px] font-mono font-medium tracking-[0.15em] text-[#10b981]/60 bg-[#10b981]/10 px-2 py-0.5 rounded border border-[#10b981]/20">TOP {topK}</span>
                         </div>
                         <div className="p-3 flex-1 overflow-y-auto h-[440px] space-y-2.5 custom-scrollbar">
                           {Array.isArray(searchData.cross_encoder) ? searchData.cross_encoder.map((item: any, i: number) => (
@@ -2804,7 +3796,7 @@ export default function Home() {
             {/* Footer */}
             <div className="mt-8 flex justify-between items-center text-[10px] font-mono text-[#282e3a]">
               <span>v2.0.0-archon</span>
-              <span>Archon Copilot • Multi-Strategy Diagnostic Portal</span>
+              <span>Archon Copilot · Multi-Strategy Diagnostic Portal</span>
             </div>
           </div>
         </main>
@@ -2812,3 +3804,5 @@ export default function Home() {
     </div>
   );
 }
+
+

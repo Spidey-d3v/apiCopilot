@@ -44,7 +44,8 @@ def ensure_git_safe_directory():
 class QueryRequest(BaseModel):
     query: str
     model: str = DEFAULT_MODEL
-    top_k: Optional[int] = 3
+    top_k: Optional[int] = 5
+    search_strategy: Optional[str] = "hybrid" # "hybrid", "dense", "bm25"
 
 class Message(BaseModel):
     role: str  # "user" | "assistant" | "system"
@@ -181,12 +182,18 @@ async def generate(req: QueryRequest):
         async with httpx.AsyncClient(timeout=10.0) as client:
             search_resp = await client.post(
                 f"{RAG_SERVICE_URL}/api/search",
-                json={"query": req.query, "top_k": req.top_k or 3}
+                json={"query": req.query, "top_k": req.top_k or 5}
             )
             if search_resp.status_code == 200:
                 search_data = search_resp.json()
-                cross_results = search_data.get("cross_encoder", [])
-                valid_chunks = [c["text"] for c in cross_results if "text" in c and c.get("score") != "N/A"]
+                strat = (req.search_strategy or "hybrid").lower()
+                if strat == "bm25":
+                    results = search_data.get("bm25", [])
+                elif strat == "dense":
+                    results = search_data.get("dense", [])
+                else:
+                    results = search_data.get("cross_encoder", [])
+                valid_chunks = [c["text"] for c in results if isinstance(c, dict) and "text" in c and c.get("score") != "N/A"]
                 if valid_chunks:
                     context_text = "\n\n---\n\n".join(valid_chunks)
     except Exception as e:
@@ -452,6 +459,13 @@ async def terminal_exec(req: TerminalExecRequest):
             "cwd": cwd_str
         }
 
+class DeleteItemRequest(BaseModel):
+    path: str
+
+class RenameItemRequest(BaseModel):
+    old_path: str
+    new_path: str
+
 @app.get("/api/workspace/tree")
 def get_workspace_tree(subpath: str = ""):
     """Returns a recursive file & folder tree of the active project workspace."""
@@ -460,7 +474,7 @@ def get_workspace_tree(subpath: str = ""):
     if not str(target_dir).startswith(str(ACTIVE_WORKSPACE_ROOT)):
         raise HTTPException(status_code=403, detail="Access denied")
     
-    def build_tree(dir_path: Path, current_depth: int = 0, max_depth: int = 2):
+    def build_tree(dir_path: Path, current_depth: int = 0, max_depth: int = 6):
         items = []
         if current_depth > max_depth:
             return items
@@ -469,10 +483,17 @@ def get_workspace_tree(subpath: str = ""):
                 entries = sorted(list(it), key=lambda e: (not e.is_dir(follow_symlinks=False), e.name.lower()))
                 count = 0
                 for entry in entries:
-                    if count >= 120:
+                    if count >= 300:
                         break
-                    if entry.name in IGNORED_DIRS or entry.name.startswith("."):
-                        continue
+                    
+                    # Ignore hidden internal directories and virtualenvs
+                    if entry.is_dir(follow_symlinks=False):
+                        if entry.name in IGNORED_DIRS or entry.name.startswith("."):
+                            continue
+                    elif entry.is_file(follow_symlinks=False):
+                        if entry.name in [".DS_Store", "Thumbs.db"] or entry.name.endswith((".pyc", ".tmp", ".swp")):
+                            continue
+
                     full_path = Path(entry.path)
                     rel_path = str(full_path.relative_to(ACTIVE_WORKSPACE_ROOT)).replace("\\", "/")
                     if entry.is_dir(follow_symlinks=False):
@@ -498,8 +519,35 @@ def get_workspace_tree(subpath: str = ""):
     return {
         "root": str(ACTIVE_WORKSPACE_ROOT.name),
         "root_path": str(ACTIVE_WORKSPACE_ROOT).replace("\\", "/"),
-        "tree": build_tree(target_dir, 0, 1 if str(ACTIVE_WORKSPACE_ROOT) == "/mnt/c/Users/gaura" else 2)
+        "tree": build_tree(target_dir, 0, 2 if str(ACTIVE_WORKSPACE_ROOT) == "/mnt/c/Users/gaura" else 6)
     }
+
+@app.get("/api/workspace/all-files")
+def get_all_workspace_files():
+    """Returns a flat list of all searchable file paths for instant Ctrl+P Quick Open."""
+    global ACTIVE_WORKSPACE_ROOT
+    files = []
+    try:
+        for root, dirs, filenames in os.walk(ACTIVE_WORKSPACE_ROOT):
+            # Prune ignored directories in-place for high performance
+            dirs[:] = [d for d in dirs if d not in IGNORED_DIRS and not d.startswith(".")]
+            for fn in filenames:
+                if fn in [".DS_Store", "Thumbs.db"] or fn.endswith((".pyc", ".tmp", ".swp")):
+                    continue
+                full_path = Path(root) / fn
+                rel_path = str(full_path.relative_to(ACTIVE_WORKSPACE_ROOT)).replace("\\", "/")
+                files.append({
+                    "name": fn,
+                    "path": rel_path,
+                    "extension": full_path.suffix.lower().lstrip(".")
+                })
+                if len(files) >= 1500:
+                    break
+            if len(files) >= 1500:
+                break
+    except Exception:
+        pass
+    return {"files": files}
 
 @app.get("/api/workspace/file")
 def read_workspace_file(path: str):
@@ -545,6 +593,49 @@ def create_workspace_item(req: CreateFileRequest):
             if not target_path.exists():
                 target_path.touch()
         return {"status": "success", "path": req.path}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/workspace/delete")
+def delete_workspace_item(req: DeleteItemRequest):
+    """Deletes a file or directory in the active workspace."""
+    global ACTIVE_WORKSPACE_ROOT
+    import shutil
+    target_path = (ACTIVE_WORKSPACE_ROOT / req.path).resolve()
+    if not str(target_path).startswith(str(ACTIVE_WORKSPACE_ROOT)) or target_path == ACTIVE_WORKSPACE_ROOT:
+        raise HTTPException(status_code=403, detail="Cannot delete root workspace or external path")
+    
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail="File or folder not found")
+
+    try:
+        if target_path.is_dir():
+            shutil.rmtree(target_path)
+        else:
+            target_path.unlink()
+        return {"status": "success", "path": req.path}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/workspace/rename")
+def rename_workspace_item(req: RenameItemRequest):
+    """Renames or moves a file or directory in the workspace."""
+    global ACTIVE_WORKSPACE_ROOT
+    import shutil
+    old_target = (ACTIVE_WORKSPACE_ROOT / req.old_path).resolve()
+    new_target = (ACTIVE_WORKSPACE_ROOT / req.new_path).resolve()
+
+    if not str(old_target).startswith(str(ACTIVE_WORKSPACE_ROOT)) or not str(new_target).startswith(str(ACTIVE_WORKSPACE_ROOT)):
+        raise HTTPException(status_code=403, detail="Access denied")
+    if not old_target.exists():
+        raise HTTPException(status_code=404, detail="Source file not found")
+    if new_target.exists() and new_target != old_target:
+        raise HTTPException(status_code=400, detail="Destination already exists")
+
+    try:
+        new_target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(old_target), str(new_target))
+        return {"status": "success", "old_path": req.old_path, "new_path": req.new_path}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -602,12 +693,32 @@ async def agent_chat(req: AgentChatRequest):
     system_prompt = """You are Archon Agent, an elite AI pair programmer and software architect embedded directly into the developer's IDE.
 You write clean, modular, production-ready code with rigorous adherence to best practices.
 
-### PAIR PROGRAMMING & CODE EDITING RULES:
+### PAIR PROGRAMMING & SURGICAL CODE EDITING RULES:
 1. If the user is greeting you (e.g. 'hi', 'hello', 'hey'), respond concisely and warmly asking what task or code they want to work on. DO NOT generate code for simple greetings.
-2. When asked to write, modify, refactor, optimize, debug, or add features to code:
-   - Provide the complete, updated code inside standard fenced code blocks (e.g. ```python, ```typescript, ```javascript, ```json, ```yaml, ```html, ```css, ```bash).
-   - Whenever creating a new file (e.g. `refund_slack.py`), specify the filename at the very top of the code block as a comment (e.g. `# filename: refund_slack.py`) so the IDE can automatically create and open that file for the developer.
-   - Your code blocks are directly parsed and applied by the IDE with the '⚡ Apply to File' button and Auto-Apply engine.
+
+2. SURGICAL EDITING ON EXISTING FILES (CRITICAL):
+   When editing, refactoring, fixing bugs, or adding features to an existing file (such as the Current Active Editor File):
+   - NEVER output the full file.
+   - ALWAYS enclose your SEARCH/REPLACE diff blocks inside standard fenced markdown (```python or ```diff):
+   ```python
+   <<<<<<< SEARCH
+   // exact lines of existing code from the file to match (including 1-2 surrounding lines)
+   =======
+   // updated replacement code
+   >>>>>>> REPLACE
+   ```
+   - You can output multiple SEARCH/REPLACE blocks in sequence for non-contiguous changes across the file.
+   - The SEARCH block MUST uniquely match existing lines in the file, preserving exact indentation and newlines.
+
+3. BRAND NEW FILES:
+   When creating a brand new file (e.g. `auth_helper.py`):
+   - Specify `# filename: auth_helper.py` on the very first line inside a fenced code block:
+   ```python
+   # filename: auth_helper.py
+   // full file code
+   ```
+
+4. CODE QUALITY:
    - Maintain correct imports, type annotations, and error handling.
    - Use the retrieved API Documentation Context and Active Editor File context below to provide 100% accurate, production-ready code.
 """
