@@ -228,9 +228,7 @@ Provide production-ready code examples (e.g. cURL, Python, TypeScript) with corr
 
 ACTIVE_WORKSPACE_ROOT = WORKSPACE_ROOT
 RECENT_PROJECTS: List[str] = [
-    str(WORKSPACE_ROOT).replace("\\", "/"),
-    "C:/Users/gaura",
-    "D:/AIDeV"
+    str(WORKSPACE_ROOT).replace("\\", "/")
 ]
 
 class OpenProjectRequest(BaseModel):
@@ -259,7 +257,22 @@ def normalize_workspace_path(p_str: str) -> Path:
 
     clean_lower = cleaned.lower().rstrip("/")
 
-    # 2. If running inside Docker where /workspace is the mounted project root
+    # 2. Check if path starts with a Windows Drive (e.g. C:/... or D:/...)
+    if len(cleaned) >= 2 and cleaned[1] == ":":
+        drive = cleaned[0].lower()
+        rest = cleaned[2:].lstrip("/")
+        if os.name != 'nt':
+            # If /mnt/c or /mnt/d is mounted
+            if os.path.exists(f"/mnt/{drive}"):
+                return Path(f"/mnt/{drive}/{rest}").resolve() if rest else Path(f"/mnt/{drive}").resolve()
+            # If running in Docker where /workspace is the repo
+            if os.path.exists("/workspace"):
+                if not rest or rest.lower() == "aidev":
+                    return Path("/workspace").resolve()
+                return (Path("/workspace") / rest).resolve()
+        return Path(cleaned).resolve()
+
+    # 3. If running inside Docker where /workspace is mounted
     if os.path.exists("/workspace"):
         if clean_lower in ["", ".", "./", "/workspace", "d:/aidev", "/mnt/d/aidev", "aidev"]:
             return Path("/workspace").resolve()
@@ -273,20 +286,7 @@ def normalize_workspace_path(p_str: str) -> Path:
             sub = cleaned[11:].lstrip("/")
             return (Path("/workspace") / sub).resolve()
 
-    # 3. Handle Windows Drive Paths (e.g. D:/... or C:/...)
-    if len(cleaned) >= 2 and cleaned[1] == ":":
-        drive = cleaned[0].lower()
-        rest = cleaned[2:].lstrip("/")
-        if os.name != 'nt':
-            if os.path.exists(f"/mnt/{drive}/{rest}"):
-                return Path(f"/mnt/{drive}/{rest}").resolve()
-            if os.path.exists("/workspace"):
-                if not rest or rest.lower() == "aidev":
-                    return Path("/workspace").resolve()
-                return (Path("/workspace") / rest).resolve()
-        return Path(cleaned).resolve()
-    
-    # 4. Handle Linux /mnt/d/... mounts
+    # 4. Handle Linux /mnt/... mounts
     if os.name != 'nt' and clean_lower.startswith("/mnt/"):
         if os.path.exists(cleaned):
             return Path(cleaned).resolve()
