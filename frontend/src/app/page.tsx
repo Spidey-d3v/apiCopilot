@@ -735,7 +735,6 @@ function VSCodeAgentIDE({
       id: 'term-1',
       name: 'bash 1',
       history: [
-        { type: 'system', text: ARCHON_ASCII_ART },
         { type: 'system', text: `Archon Interactive Shell v2.0 initialized in ${currentProjectPath}. Type any command (e.g. ls, git status, npm test, python)...` }
       ],
       commandHistory: [],
@@ -1636,13 +1635,9 @@ function VSCodeAgentIDE({
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-[#090b0e] select-none overflow-y-auto custom-scrollbar">
-              {/* ASCII Art Hero Display */}
-              <div className="mb-4 p-4 rounded-xl bg-[#07080a] border border-[#161922] shadow-2xl relative overflow-hidden group hover:border-[#38bdf8]/30 transition-all">
-                <div className="absolute top-2 right-3 flex items-center gap-1.5 text-[9px] font-mono text-[#38bdf8]/70 uppercase tracking-widest">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#38bdf8] animate-pulse" />
-                  ARCHON CORE
-                </div>
-                <pre className="text-[8.5px] sm:text-[9.5px] md:text-[10.5px] font-mono font-bold leading-[11px] sm:leading-[12.5px] text-[#38bdf8]/75 group-hover:text-[#38bdf8] transition-colors select-none">
+              {/* Pure Clean ASCII Art Display */}
+              <div className="mb-4 flex justify-center items-center">
+                <pre className="text-[8.5px] sm:text-[9.5px] md:text-[10px] font-mono font-bold leading-[11px] sm:leading-[12px] text-[#38bdf8]/85 hover:text-[#38bdf8] transition-colors select-none">
                   {ARCHON_ASCII_ART}
                 </pre>
               </div>
