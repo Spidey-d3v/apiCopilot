@@ -24,7 +24,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-WORKSPACE_ROOT = Path(os.getenv("WORKSPACE_ROOT", str(Path(__file__).resolve().parent.parent.parent.parent)))
+WORKSPACE_ROOT = Path(os.getenv("WORKSPACE_ROOT", "/workspace" if os.path.exists("/workspace") else str(Path(__file__).resolve().parent.parent.parent.parent)))
 IGNORED_DIRS = {".git", "venv", ".venv", "node_modules", ".next", "__pycache__", ".idea", ".vscode", "data", "chroma_db"}
 
 @app.on_event("startup")
@@ -246,13 +246,55 @@ import subprocess
 
 def normalize_workspace_path(p_str: str) -> Path:
     cleaned = p_str.strip().replace("\\", "/")
+
+    # 1. Clean malformed /mnt/D:... or /mnt/d:... prefixes
+    if cleaned.lower().startswith("/mnt/") and len(cleaned) >= 7 and cleaned[6] == ":":
+        drive = cleaned[5].lower()
+        rest = cleaned[7:].lstrip("/")
+        cleaned = f"{drive}:/{rest}"
+    elif cleaned.lower().startswith("/mnt/") and len(cleaned) >= 6 and cleaned[5] == "/":
+        drive = cleaned[4].lower()
+        rest = cleaned[6:].lstrip("/")
+        cleaned = f"/mnt/{drive}/{rest}"
+
+    clean_lower = cleaned.lower().rstrip("/")
+
+    # 2. If running inside Docker where /workspace is the mounted project root
+    if os.path.exists("/workspace"):
+        if clean_lower in ["", ".", "./", "/workspace", "d:/aidev", "/mnt/d/aidev", "aidev"]:
+            return Path("/workspace").resolve()
+        if clean_lower.startswith("/mnt/d/aidev/"):
+            sub = cleaned[13:].lstrip("/")
+            return (Path("/workspace") / sub).resolve()
+        if clean_lower.startswith("d:/aidev/"):
+            sub = cleaned[9:].lstrip("/")
+            return (Path("/workspace") / sub).resolve()
+        if clean_lower.startswith("/workspace/"):
+            sub = cleaned[11:].lstrip("/")
+            return (Path("/workspace") / sub).resolve()
+
+    # 3. Handle Windows Drive Paths (e.g. D:/... or C:/...)
     if len(cleaned) >= 2 and cleaned[1] == ":":
         drive = cleaned[0].lower()
         rest = cleaned[2:].lstrip("/")
-        if os.name != 'nt' and os.path.exists(f"/mnt/{drive}"):
-            return Path(f"/mnt/{drive}/{rest}").resolve()
+        if os.name != 'nt':
+            if os.path.exists(f"/mnt/{drive}/{rest}"):
+                return Path(f"/mnt/{drive}/{rest}").resolve()
+            if os.path.exists("/workspace"):
+                if not rest or rest.lower() == "aidev":
+                    return Path("/workspace").resolve()
+                return (Path("/workspace") / rest).resolve()
         return Path(cleaned).resolve()
     
+    # 4. Handle Linux /mnt/d/... mounts
+    if os.name != 'nt' and clean_lower.startswith("/mnt/"):
+        if os.path.exists(cleaned):
+            return Path(cleaned).resolve()
+        if os.path.exists("/workspace") and "aidev" in clean_lower:
+            idx = clean_lower.find("aidev")
+            sub = cleaned[idx + 5:].lstrip("/")
+            return (Path("/workspace") / sub).resolve() if sub else Path("/workspace").resolve()
+
     p = Path(cleaned)
     if not p.is_absolute() and not cleaned.startswith("/"):
         return (ACTIVE_WORKSPACE_ROOT / cleaned).resolve()

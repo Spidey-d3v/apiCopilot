@@ -62,6 +62,7 @@ services:
       - "8000:8000"
     volumes:
       - .:/workspace
+      - ./services/orchestrator_service/app:/app/app
     environment:
       - PORT=8000
       - HOST=0.0.0.0
