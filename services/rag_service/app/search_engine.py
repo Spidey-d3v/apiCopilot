@@ -135,17 +135,21 @@ class SearchEngine:
                 top_indices = np.argsort(scores)[::-1][:min(top_k * 2, len(scores))]
                 for i, idx in enumerate(top_indices[:top_k]):
                     if scores[idx] > 0.0:
+                        meta = self.docs_metas[idx] if idx < len(self.docs_metas) else {}
                         bm25_results.append({
                             "rank": i + 1,
                             "score": f"BM25: {scores[idx]:.2f}",
-                            "text": self.docs_texts[idx]
+                            "text": self.docs_texts[idx],
+                            "source": meta.get("source", "unknown"),
+                            "endpoint": meta.get("endpoint", ""),
+                            "api_title": meta.get("api_title", "")
                         })
                 for idx in top_indices:
                     if scores[idx] > 0.0:
                         bm25_candidates.append(self.docs_texts[idx])
         
         if not bm25_results:
-            bm25_results.append({"rank": 1, "score": "N/A", "text": "No exact keyword matches found."})
+            bm25_results.append({"rank": 1, "score": "N/A", "text": "No exact keyword matches found.", "source": "", "endpoint": "", "api_title": ""})
 
         # 2. Dense Vector Proximity Search
         dense_results = []
@@ -158,16 +162,21 @@ class SearchEngine:
             if raw['documents'] and len(raw['documents'][0]) > 0:
                 docs = raw['documents'][0]
                 dists = raw['distances'][0] if 'distances' in raw and raw['distances'] else [0.0]*len(docs)
+                metas = raw['metadatas'][0] if 'metadatas' in raw and raw['metadatas'] else []
                 for i in range(min(top_k, len(docs))):
+                    meta = metas[i] if i < len(metas) else {}
                     dense_results.append({
                         "rank": i + 1,
                         "score": f"L2 Dist: {dists[i]:.4f}",
-                        "text": docs[i]
+                        "text": docs[i],
+                        "source": meta.get("source", "unknown"),
+                        "endpoint": meta.get("endpoint", ""),
+                        "api_title": meta.get("api_title", "")
                     })
                 dense_candidates = docs
         
         if not dense_results:
-            dense_results.append({"rank": 1, "score": "N/A", "text": "Dense vector model loading or DB empty."})
+            dense_results.append({"rank": 1, "score": "N/A", "text": "Dense vector model loading or DB empty.", "source": "", "endpoint": "", "api_title": ""})
 
         # 3. Candidate Fusion & Cross-Encoder Deep Attention Re-Ranking
         # Combine unique candidates from BM25 and Dense vector searches
@@ -175,19 +184,28 @@ class SearchEngine:
         if not candidate_pool and self.docs_texts:
             candidate_pool = self.docs_texts[:min(top_k * 2, len(self.docs_texts))]
 
+        text_to_meta = {}
+        if self.docs_texts and self.docs_metas:
+            for t, m in zip(self.docs_texts, self.docs_metas):
+                text_to_meta[t] = m
+
         cross_results = []
         if self.cross_encoder and candidate_pool:
             pairs = [[query, doc] for doc in candidate_pool]
             raw_scores = self.cross_encoder.predict(pairs)
             ranked = sorted(zip(raw_scores, candidate_pool), reverse=True)
             for i, (score, doc) in enumerate(ranked[:top_k]):
+                meta = text_to_meta.get(doc, {})
                 cross_results.append({
                     "rank": i + 1,
                     "score": f"Logit: {float(score):.4f}",
-                    "text": doc
+                    "text": doc,
+                    "source": meta.get("source", "unknown"),
+                    "endpoint": meta.get("endpoint", ""),
+                    "api_title": meta.get("api_title", "")
                 })
         else:
-            cross_results.append({"rank": 1, "score": "N/A", "text": "Cross-Encoder model loading or candidate pool empty."})
+            cross_results.append({"rank": 1, "score": "N/A", "text": "Cross-Encoder model loading or candidate pool empty.", "source": "", "endpoint": "", "api_title": ""})
 
         return {
             "bm25": bm25_results,
