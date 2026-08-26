@@ -34,11 +34,15 @@ class IngestRequest(BaseModel):
 
 @app.get("/health")
 def health():
+    try:
+        count = engine.collection.count() if engine.collection else 0
+    except Exception:
+        count = 0
     return {
         "status": "healthy",
         "service": "rag_service",
         "ready": engine.ready,
-        "indexed_chunks": engine.collection.count() if engine.collection else 0
+        "indexed_chunks": count
     }
 
 @app.post("/api/search")
