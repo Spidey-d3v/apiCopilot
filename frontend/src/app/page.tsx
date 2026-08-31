@@ -2,11 +2,19 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { EvaluationDashboard } from './components/EvaluationDashboard';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 /* ── Professional Sleek SVG Icon Library ───────────────────── */
 const Icons = {
+  Chart: () => (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10" />
+      <line x1="12" y1="20" x2="12" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="14" />
+    </svg>
+  ),
   Explorer: () => (
     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 7v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-7l-2-2H5a2 2 0 0 0-2 2z" />
@@ -2838,7 +2846,7 @@ function VSCodeAgentIDE({
 
 /* -- Main Application Component ------------------------------ */
 export default function Home() {
-  const [appMode, setAppMode] = useState<'api_copilot' | 'copilot_agent'>('api_copilot');
+  const [appMode, setAppMode] = useState<'api_copilot' | 'copilot_agent' | 'evaluation'>('api_copilot');
 
   // Shared Global State
   const [models, setModels] = useState<string[]>(["gemma3:4b", "gemma3:12b", "codellama:7b-instruct"]);
@@ -3129,10 +3137,10 @@ export default function Home() {
           </div>
 
           {/* Center Mode Switcher */}
-          <div className="flex items-center p-1 bg-[#0c0e12] border border-[#1a1e26] rounded-xl shadow-inner">
+          <div className="flex items-center p-1 bg-[#0c0e12] border border-[#1a1e26] rounded-xl shadow-inner gap-1">
             <button
               onClick={() => setAppMode('api_copilot')}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[12px] font-mono font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-[12px] font-mono font-semibold transition-all cursor-pointer ${
                 appMode === 'api_copilot'
                   ? 'bg-[#1e293b] text-[#60a5fa] border border-[#3b82f6]/30 shadow-md'
                   : 'text-[#64748b] hover:text-[#cbd5e1]'
@@ -3143,7 +3151,7 @@ export default function Home() {
             </button>
             <button
               onClick={() => setAppMode('copilot_agent')}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[12px] font-mono font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-[12px] font-mono font-semibold transition-all cursor-pointer ${
                 appMode === 'copilot_agent'
                   ? 'bg-[#1e293b] text-[#60a5fa] border border-[#3b82f6]/30 shadow-md'
                   : 'text-[#64748b] hover:text-[#cbd5e1]'
@@ -3151,6 +3159,17 @@ export default function Home() {
             >
               <Icons.ArchonAI />
               <span>Archon Agent (IDE)</span>
+            </button>
+            <button
+              onClick={() => setAppMode('evaluation')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-[12px] font-mono font-semibold transition-all cursor-pointer ${
+                appMode === 'evaluation'
+                  ? 'bg-[#1e293b] text-[#34d399] border border-[#10b981]/40 shadow-md'
+                  : 'text-[#64748b] hover:text-[#cbd5e1]'
+              }`}
+            >
+              <Icons.Chart />
+              <span>Lab 4 Evaluation</span>
             </button>
           </div>
 
@@ -3162,7 +3181,11 @@ export default function Home() {
       </header>
 
       {/* ── VIEWPORT CONTENT SWITCHER ─────────────────────────────── */}
-      {appMode === 'copilot_agent' ? (
+      {appMode === 'evaluation' ? (
+        <main className="w-full min-h-[calc(100vh-56px)]">
+          <EvaluationDashboard />
+        </main>
+      ) : appMode === 'copilot_agent' ? (
         <main className="w-full h-[calc(100vh-56px)] overflow-hidden">
           <VSCodeAgentIDE
             apiBase={API_BASE}
