@@ -8,6 +8,7 @@ import httpx
 import json as json_module
 import os
 import asyncio
+import logging
 
 from .config import RAG_SERVICE_URL, INGESTION_SERVICE_URL, OLLAMA_URL, DEFAULT_MODEL
 
@@ -102,18 +103,6 @@ async def health():
         }
     }
 
-@app.get("/api/models")
-async def get_models():
-    """Proxies available models from Ollama."""
-    async with httpx.AsyncClient(timeout=5.0) as client:
-        try:
-            response = await client.get(f"{OLLAMA_URL}/api/tags")
-            if response.status_code == 200:
-                models = [m["name"] for m in response.json().get("models", [])]
-                return {"models": models}
-        except Exception:
-            pass
-        return {"models": ["gemma3:4b", "gemma3:12b", "codellama:7b-instruct"]}
 
 @app.get("/api/database")
 async def get_database():
@@ -549,13 +538,25 @@ def get_all_workspace_files():
         pass
     return {"files": files}
 
+def resolve_file_or_workspace_path(path_str: str) -> Path:
+    """Resolves a relative or absolute file path anywhere on mounted drives (/workspace, /mnt/c, /mnt/d) or workspace root."""
+    global ACTIVE_WORKSPACE_ROOT
+    cleaned = path_str.strip().replace("\\", "/")
+    
+    # Check if absolute Windows or Linux path
+    if (len(cleaned) >= 2 and cleaned[1] == ":") or cleaned.startswith("/mnt/") or cleaned.startswith("/workspace"):
+        target = normalize_workspace_path(cleaned)
+    else:
+        target = (ACTIVE_WORKSPACE_ROOT / cleaned).resolve()
+        
+    return target
+
 @app.get("/api/workspace/file")
 def read_workspace_file(path: str):
-    """Reads the raw text content of a workspace file."""
-    global ACTIVE_WORKSPACE_ROOT
-    target_file = (ACTIVE_WORKSPACE_ROOT / path).resolve()
-    if not str(target_file).startswith(str(ACTIVE_WORKSPACE_ROOT)) or not target_file.is_file():
-        raise HTTPException(status_code=404, detail="File not found")
+    """Reads the raw text content of a workspace file anywhere on PC / mounted drives."""
+    target_file = resolve_file_or_workspace_path(path)
+    if not target_file.is_file():
+        raise HTTPException(status_code=404, detail=f"File not found: {path}")
     try:
         with open(target_file, "r", encoding="utf-8", errors="replace") as f:
             content = f.read()
@@ -565,11 +566,8 @@ def read_workspace_file(path: str):
 
 @app.post("/api/workspace/file")
 def save_workspace_file(req: FileContentRequest):
-    """Saves updated text content to a workspace file."""
-    global ACTIVE_WORKSPACE_ROOT
-    target_file = (ACTIVE_WORKSPACE_ROOT / req.path).resolve()
-    if not str(target_file).startswith(str(ACTIVE_WORKSPACE_ROOT)):
-        raise HTTPException(status_code=403, detail="Access denied")
+    """Saves updated text content to a file in workspace or anywhere on mounted drives."""
+    target_file = resolve_file_or_workspace_path(req.path)
     try:
         target_file.parent.mkdir(parents=True, exist_ok=True)
         with open(target_file, "w", encoding="utf-8") as f:
@@ -580,11 +578,8 @@ def save_workspace_file(req: FileContentRequest):
 
 @app.post("/api/workspace/create")
 def create_workspace_item(req: CreateFileRequest):
-    """Creates a new file or directory in the workspace."""
-    global ACTIVE_WORKSPACE_ROOT
-    target_path = (ACTIVE_WORKSPACE_ROOT / req.path).resolve()
-    if not str(target_path).startswith(str(ACTIVE_WORKSPACE_ROOT)):
-        raise HTTPException(status_code=403, detail="Access denied")
+    """Creates a new file or directory anywhere in workspace or mounted drives."""
+    target_path = resolve_file_or_workspace_path(req.path)
     try:
         if req.is_directory:
             target_path.mkdir(parents=True, exist_ok=True)
@@ -598,15 +593,16 @@ def create_workspace_item(req: CreateFileRequest):
 
 @app.post("/api/workspace/delete")
 def delete_workspace_item(req: DeleteItemRequest):
-    """Deletes a file or directory in the active workspace."""
+    """Deletes a file or directory."""
     global ACTIVE_WORKSPACE_ROOT
     import shutil
-    target_path = (ACTIVE_WORKSPACE_ROOT / req.path).resolve()
-    if not str(target_path).startswith(str(ACTIVE_WORKSPACE_ROOT)) or target_path == ACTIVE_WORKSPACE_ROOT:
-        raise HTTPException(status_code=403, detail="Cannot delete root workspace or external path")
-    
+    target_path = resolve_file_or_workspace_path(req.path)
     if not target_path.exists():
         raise HTTPException(status_code=404, detail="File or folder not found")
+    
+    # Prevent deleting root drives
+    if str(target_path) in ["/", "/mnt", "/mnt/c", "/mnt/d", "/workspace", "C:/", "D:/", "C:", "D:"]:
+        raise HTTPException(status_code=403, detail="Cannot delete root system drive")
 
     try:
         if target_path.is_dir():
@@ -619,14 +615,12 @@ def delete_workspace_item(req: DeleteItemRequest):
 
 @app.post("/api/workspace/rename")
 def rename_workspace_item(req: RenameItemRequest):
-    """Renames or moves a file or directory in the workspace."""
+    """Renames or moves a file or directory."""
     global ACTIVE_WORKSPACE_ROOT
     import shutil
-    old_target = (ACTIVE_WORKSPACE_ROOT / req.old_path).resolve()
-    new_target = (ACTIVE_WORKSPACE_ROOT / req.new_path).resolve()
+    old_target = resolve_file_or_workspace_path(req.old_path)
+    new_target = resolve_file_or_workspace_path(req.new_path)
 
-    if not str(old_target).startswith(str(ACTIVE_WORKSPACE_ROOT)) or not str(new_target).startswith(str(ACTIVE_WORKSPACE_ROOT)):
-        raise HTTPException(status_code=403, detail="Access denied")
     if not old_target.exists():
         raise HTTPException(status_code=404, detail="Source file not found")
     if new_target.exists() and new_target != old_target:
@@ -663,19 +657,19 @@ async def agent_chat(req: AgentChatRequest):
                     cross_results = search_data.get("cross_encoder", [])
                     valid_chunks = [c for c in cross_results if isinstance(c, dict) and "text" in c and c.get("score") != "N/A"]
                     if valid_chunks:
-                        rag_context = "\n\n---\n\n".join([c["text"] for c in valid_chunks[:3]])
-                        for c in valid_chunks[:3]:
+                        context_chunks = []
+                        for rank, c in enumerate(valid_chunks, 1):
                             raw_txt = c["text"]
-                            title = "Enterprise API"
-                            file_name = "payments_v2.yaml"
-                            if "title:" in raw_txt.lower():
-                                for line in raw_txt.splitlines():
-                                    if line.strip().lower().startswith("title:"):
-                                        title = line.split(":", 1)[1].strip()
-                                        break
-                            elif "slack" in raw_txt.lower():
-                                title = "Slack Web API"
+                            context_chunks.append(f"[Spec Citation #{rank}]\n{raw_txt}")
+
+                            title = "API Specification"
+                            file_name = "spec.yaml"
+                            if "slack" in raw_txt.lower():
+                                title = "Slack Webhook & Chat API"
                                 file_name = "slack_spec.yaml"
+                            elif "twilio" in raw_txt.lower() or "sms" in raw_txt.lower():
+                                title = "Twilio Messaging REST API"
+                                file_name = "twilio_sms.json"
                             elif "stripe" in raw_txt.lower() or "payment" in raw_txt.lower() or "refund" in raw_txt.lower():
                                 title = "Enterprise Payments API v2.1.0"
                                 file_name = "payments_v2.yaml"
@@ -687,19 +681,28 @@ async def agent_chat(req: AgentChatRequest):
                                 "rank": c.get("rank", 1),
                                 "text": raw_txt
                             })
+                        rag_context = "\n\n---\n\n".join(context_chunks)
         except Exception as e:
             print(f"Warning: Agent RAG retrieval failed: {e}")
 
     system_prompt = """You are Archon Agent, an elite AI pair programmer and software architect embedded directly into the developer's IDE.
 You write clean, modular, production-ready code with rigorous adherence to best practices.
 
-### PAIR PROGRAMMING & SURGICAL CODE EDITING RULES:
+### PAIR PROGRAMMING & CODE GENERATION RULES:
 1. If the user is greeting you (e.g. 'hi', 'hello', 'hey'), respond concisely and warmly asking what task or code they want to work on. DO NOT generate code for simple greetings.
 
-2. SURGICAL EDITING ON EXISTING FILES (CRITICAL):
-   When editing, refactoring, fixing bugs, or adding features to an existing file (such as the Current Active Editor File):
-   - NEVER output the full file.
-   - ALWAYS enclose your SEARCH/REPLACE diff blocks inside standard fenced markdown (```python or ```diff):
+2. NEW OR EMPTY FILES (CRITICAL):
+   - If the active editor file is EMPTY or BLANK (or has no existing code to modify), OR if you are writing code for a new file/task:
+   - NEVER use SEARCH/REPLACE diff blocks.
+   - ALWAYS output the complete implementation inside standard fenced markdown (```python, ```typescript, etc.) and include `# filename: <filename>` at the top of the block.
+   ```python
+   # filename: send_twilio_sms.py
+   // complete implementation
+   ```
+
+3. SURGICAL EDITING ON EXISTING FILES WITH CODE:
+   - ONLY when editing, refactoring, fixing bugs, or modifying a NON-EMPTY file that already contains code:
+   - Enclose your SEARCH/REPLACE diff blocks inside standard fenced markdown (```python or ```diff):
    ```python
    <<<<<<< SEARCH
    // exact lines of existing code from the file to match (including 1-2 surrounding lines)
@@ -707,19 +710,18 @@ You write clean, modular, production-ready code with rigorous adherence to best 
    // updated replacement code
    >>>>>>> REPLACE
    ```
-   - You can output multiple SEARCH/REPLACE blocks in sequence for non-contiguous changes across the file.
-   - The SEARCH block MUST uniquely match existing lines in the file, preserving exact indentation and newlines.
+   - The SEARCH block MUST uniquely match actual lines existing in the file.
+   - DELETION: To delete lines, put the exact lines in SEARCH and leave REPLACE empty.
+   - ADDITION: To add code at a location, put the surrounding anchor line in SEARCH, and put the anchor line plus your new code in REPLACE.
 
-3. BRAND NEW FILES:
-   When creating a brand new file (e.g. `auth_helper.py`):
-   - Specify `# filename: auth_helper.py` on the very first line inside a fenced code block:
-   ```python
-   # filename: auth_helper.py
-   // full file code
-   ```
+4. STRICTLY FORBIDDEN (NEVER DO THESE):
+   - NEVER output placeholder comments like `// ... rest of code ...`, `// ... unchanged ...`, `// ... (remaining code) ...`, `/* ... */`, `# ... rest remains the same ...`, or any ellipsis/abbreviation of existing code.
+   - NEVER abbreviate or summarize existing code with comments like "rest of the code remains unchanged".
+   - Every line in the REPLACE block must be actual, complete, executable code — never a placeholder or summary.
+   - If you cannot fit the full replacement, output multiple smaller SEARCH/REPLACE blocks instead.
 
-4. CODE QUALITY:
-   - Maintain correct imports, type annotations, and error handling.
+5. CODE QUALITY:
+   - Maintain correct imports, type annotations, and robust error handling.
    - Use the retrieved API Documentation Context and Active Editor File context below to provide 100% accurate, production-ready code.
 """
 
@@ -727,8 +729,12 @@ You write clean, modular, production-ready code with rigorous adherence to best 
         system_prompt += f"\n\n### Retrieved Enterprise API Documentation (via Hybrid RAG):\n```\n{rag_context}\n```\n"
 
     if req.active_file_path:
-        file_preview = (req.active_file_content[:15000] + "\n...[truncated]") if req.active_file_content and len(req.active_file_content) > 15000 else (req.active_file_content or "")
-        system_prompt += f"\n\n### Current Active Editor File: `{req.active_file_path}`\n```\n{file_preview}\n```\n"
+        content_stripped = (req.active_file_content or "").strip()
+        if content_stripped and len(content_stripped) > 10:
+            file_preview = (content_stripped[:15000] + "\n...[truncated]") if len(content_stripped) > 15000 else content_stripped
+            system_prompt += f"\n\n### Current Active Editor File: `{req.active_file_path}` (Non-Empty Existing Code):\n```\n{file_preview}\n```\n"
+        else:
+            system_prompt += f"\n\n### Current Active Editor File: `{req.active_file_path}` (Currently EMPTY / NEW FILE - Provide complete implementation, DO NOT use SEARCH/REPLACE diffs).\n"
 
     # Build clean structured message history for Ollama /api/chat
     ollama_messages = [{"role": "system", "content": system_prompt}]
@@ -745,34 +751,146 @@ You write clean, modular, production-ready code with rigorous adherence to best 
         if rag_sources_list:
             yield f"data: {json_module.dumps({'rag_sources': rag_sources_list})}\n\n"
 
-        async with httpx.AsyncClient() as client:
+        # Determine if the model is a cloud model or local Ollama model
+        cloud_provider = None
+        for provider, models in CLOUD_MODELS.items():
+            if req.model in models:
+                cloud_provider = provider
+                break
+
+        keys = load_api_keys()
+
+        if cloud_provider and keys.get(cloud_provider):
+            api_key = keys[cloud_provider]
             try:
-                async with client.stream(
-                    "POST",
-                    f"{OLLAMA_URL}/api/chat",
-                    json={
-                        "model": req.model,
-                        "messages": ollama_messages,
-                        "stream": True,
-                        "options": {"temperature": req.temperature or 0.2}
-                    },
-                    timeout=None
-                ) as response:
-                    async for line in response.aiter_lines():
-                        if line.strip():
-                            try:
-                                chunk = json_module.loads(line)
-                                token = chunk.get("message", {}).get("content", "")
-                                if token:
-                                    yield f"data: {json_module.dumps({'token': token})}\n\n"
-                                if chunk.get("done", False):
-                                    yield f"data: {json_module.dumps({'done': True})}\n\n"
-                                    break
-                            except json_module.JSONDecodeError:
-                                continue
+                if cloud_provider == "openai":
+                    async with httpx.AsyncClient() as client:
+                        async with client.stream(
+                            "POST",
+                            "https://api.openai.com/v1/chat/completions",
+                            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                            json={"model": req.model, "messages": ollama_messages, "stream": True, "temperature": req.temperature or 0.2},
+                            timeout=60.0
+                        ) as response:
+                            if response.status_code != 200:
+                                err_body = (await response.aread()).decode("utf-8", errors="replace")
+                                yield f"data: {json_module.dumps({'error': f'OpenAI API Error ({response.status_code}): {err_body}'})}\n\n"
+                                return
+                            async for line in response.aiter_lines():
+                                if line.startswith("data: ") and line.strip() != "data: [DONE]":
+                                    try:
+                                        chunk = json_module.loads(line[6:])
+                                        token = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                                        if token:
+                                            yield f"data: {json_module.dumps({'token': token})}\n\n"
+                                    except (json_module.JSONDecodeError, IndexError):
+                                        continue
+                            yield f"data: {json_module.dumps({'done': True})}\n\n"
+
+                elif cloud_provider == "anthropic":
+                    async with httpx.AsyncClient() as client:
+                        system_content = ollama_messages[0]["content"] if ollama_messages and ollama_messages[0]["role"] == "system" else ""
+                        chat_messages = [m for m in ollama_messages if m["role"] != "system"]
+                        async with client.stream(
+                            "POST",
+                            "https://api.anthropic.com/v1/messages",
+                            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "Content-Type": "application/json"},
+                            json={"model": req.model, "max_tokens": 8192, "system": system_content, "messages": chat_messages, "stream": True, "temperature": req.temperature or 0.2},
+                            timeout=60.0
+                        ) as response:
+                            if response.status_code != 200:
+                                err_body = (await response.aread()).decode("utf-8", errors="replace")
+                                yield f"data: {json_module.dumps({'error': f'Anthropic API Error ({response.status_code}): {err_body}'})}\n\n"
+                                return
+                            async for line in response.aiter_lines():
+                                if line.startswith("data: "):
+                                    try:
+                                        chunk = json_module.loads(line[6:])
+                                        if chunk.get("type") == "content_block_delta":
+                                            token = chunk.get("delta", {}).get("text", "")
+                                            if token:
+                                                yield f"data: {json_module.dumps({'token': token})}\n\n"
+                                    except json_module.JSONDecodeError:
+                                        continue
+                            yield f"data: {json_module.dumps({'done': True})}\n\n"
+
+                elif cloud_provider == "gemini":
+                    async with httpx.AsyncClient() as client:
+                        system_content = ollama_messages[0]["content"] if ollama_messages and ollama_messages[0]["role"] == "system" else ""
+                        chat_messages = [m for m in ollama_messages if m["role"] != "system"]
+                        gemini_contents = [
+                            {"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]}
+                            for m in chat_messages
+                        ]
+                        if not gemini_contents:
+                            gemini_contents = [{"role": "user", "parts": [{"text": "Hello"}]}]
+
+                        gemini_payload = {
+                            "contents": gemini_contents,
+                            "generationConfig": {"temperature": req.temperature or 0.2}
+                        }
+                        if system_content:
+                            gemini_payload["systemInstruction"] = {"parts": [{"text": system_content}]}
+
+                        async with client.stream(
+                            "POST",
+                            f"https://generativelanguage.googleapis.com/v1beta/models/{req.model}:streamGenerateContent?alt=sse&key={api_key}",
+                            headers={"Content-Type": "application/json"},
+                            json=gemini_payload,
+                            timeout=60.0
+                        ) as response:
+                            if response.status_code != 200:
+                                err_body = (await response.aread()).decode("utf-8", errors="replace")
+                                yield f"data: {json_module.dumps({'error': f'Gemini API Error ({response.status_code}): {err_body}'})}\n\n"
+                                return
+                            async for line in response.aiter_lines():
+                                if line.startswith("data: "):
+                                    try:
+                                        chunk = json_module.loads(line[6:])
+                                        candidates = chunk.get("candidates", [])
+                                        if candidates:
+                                            parts = candidates[0].get("content", {}).get("parts", [])
+                                            for part in parts:
+                                                token = part.get("text", "")
+                                                if token:
+                                                    yield f"data: {json_module.dumps({'token': token})}\n\n"
+                                    except (json_module.JSONDecodeError, IndexError):
+                                        continue
+                            yield f"data: {json_module.dumps({'done': True})}\n\n"
+
             except Exception as e:
                 err_msg = str(e) if str(e) else repr(e)
-                yield f"data: {json_module.dumps({'error': f'Agent Inference Error: {err_msg}'})}\n\n"
+                yield f"data: {json_module.dumps({'error': f'Cloud API Error ({cloud_provider}): {err_msg}'})}\n\n"
+        else:
+            # Local Ollama model streaming
+            async with httpx.AsyncClient() as client:
+                try:
+                    async with client.stream(
+                        "POST",
+                        f"{OLLAMA_URL}/api/chat",
+                        json={
+                            "model": req.model,
+                            "messages": ollama_messages,
+                            "stream": True,
+                            "options": {"temperature": req.temperature or 0.2}
+                        },
+                        timeout=None
+                    ) as response:
+                        async for line in response.aiter_lines():
+                            if line.strip():
+                                try:
+                                    chunk = json_module.loads(line)
+                                    token = chunk.get("message", {}).get("content", "")
+                                    if token:
+                                        yield f"data: {json_module.dumps({'token': token})}\n\n"
+                                    if chunk.get("done", False):
+                                        yield f"data: {json_module.dumps({'done': True})}\n\n"
+                                        break
+                                except json_module.JSONDecodeError:
+                                    continue
+                except Exception as e:
+                    err_msg = str(e) if str(e) else repr(e)
+                    yield f"data: {json_module.dumps({'error': f'Agent Inference Error: {err_msg}'})}\n\n"
 
     return StreamingResponse(token_stream(), media_type="text/event-stream")
 
@@ -796,3 +914,157 @@ def apply_agent_edit(req: FileContentRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# ── Cloud LLM API Key Management ──────────────────────────────────────────
+
+API_KEYS_FILE = Path("/app/data/api_keys.json") if os.path.exists("/app") else Path(os.path.expanduser("~/.archon_api_keys.json"))
+
+def load_api_keys() -> dict:
+    if API_KEYS_FILE.exists():
+        try:
+            return json_module.loads(API_KEYS_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+def save_api_keys(keys: dict):
+    API_KEYS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    API_KEYS_FILE.write_text(json_module.dumps(keys, indent=2), encoding="utf-8")
+
+class ApiKeyRequest(BaseModel):
+    provider: str  # "openai", "anthropic", "gemini"
+    api_key: str
+
+class ApiKeyClearRequest(BaseModel):
+    provider: str
+
+CLOUD_MODELS = {
+    "openai": ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "o3", "o4-mini"],
+    "anthropic": ["claude-sonnet-4-20250514", "claude-haiku-4-20250414"],
+    "gemini": [
+        "gemini-3.7-flash",
+        "gemini-3.6-flash",
+        "gemini-3.5-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-3.1-flash-lite",
+        "gemini-3.1-pro-preview",
+        "gemini-3-flash-preview",
+        "gemini-omni-flash"
+    ]
+}
+
+@app.get("/api/cloud/keys")
+def get_cloud_keys():
+    """Returns which providers have API keys configured (without exposing key values)."""
+    keys = load_api_keys()
+    return {
+        "providers": {
+            provider: {
+                "configured": bool(keys.get(provider)),
+                "masked_key": (keys[provider][:6] + "..." + keys[provider][-4:]) if keys.get(provider) and len(keys[provider]) > 10 else ""
+            }
+            for provider in ["openai", "anthropic", "gemini"]
+        },
+        "cloud_models": CLOUD_MODELS
+    }
+
+@app.post("/api/cloud/keys")
+def set_cloud_key(req: ApiKeyRequest):
+    """Stores an API key for a cloud LLM provider persistently."""
+    if req.provider not in ["openai", "anthropic", "gemini"]:
+        raise HTTPException(status_code=400, detail=f"Unknown provider: {req.provider}")
+    keys = load_api_keys()
+    keys[req.provider] = req.api_key.strip()
+    save_api_keys(keys)
+    return {"status": "success", "provider": req.provider}
+
+@app.post("/api/cloud/keys/clear")
+def clear_cloud_key(req: ApiKeyClearRequest):
+    """Removes a stored API key for a cloud LLM provider."""
+    keys = load_api_keys()
+    if req.provider in keys:
+        del keys[req.provider]
+        save_api_keys(keys)
+    return {"status": "cleared", "provider": req.provider}
+
+@app.get("/api/models")
+async def get_models_extended():
+    """Returns all available models: local Ollama + cloud providers with configured keys."""
+    local_models = []
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        try:
+            response = await client.get(f"{OLLAMA_URL}/api/tags")
+            if response.status_code == 200:
+                local_models = [m["name"] for m in response.json().get("models", [])]
+        except Exception:
+            local_models = ["gemma3:4b"]
+
+    keys = load_api_keys()
+    cloud_models_available = []
+    for provider, models in CLOUD_MODELS.items():
+        if keys.get(provider):
+            cloud_models_available.extend(models)
+
+    return {"models": local_models + cloud_models_available}
+
+class ApiKeyTestRequest(BaseModel):
+    provider: str
+    api_key: Optional[str] = None
+    model: Optional[str] = None
+
+@app.post("/api/cloud/keys/test")
+async def test_cloud_key(req: ApiKeyTestRequest):
+    """Tests connection to a cloud provider with the stored or supplied API key."""
+    import time
+    keys = load_api_keys()
+    api_key = (req.api_key or keys.get(req.provider, "")).strip()
+    if not api_key:
+        return {"status": "error", "message": f"No API key configured for {req.provider}"}
+
+    start_time = time.time()
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        try:
+            if req.provider == "openai":
+                test_model = req.model or "gpt-4.1-mini"
+                res = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    json={"model": test_model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 5}
+                )
+                latency = int((time.time() - start_time) * 1000)
+                if res.status_code == 200:
+                    return {"status": "ok", "latency_ms": latency, "provider": "openai", "model": test_model}
+                else:
+                    return {"status": "error", "message": f"HTTP {res.status_code}: {res.text[:200]}"}
+
+            elif req.provider == "anthropic":
+                test_model = req.model or "claude-haiku-4-20250414"
+                res = await client.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "Content-Type": "application/json"},
+                    json={"model": test_model, "max_tokens": 5, "messages": [{"role": "user", "content": "ping"}]}
+                )
+                latency = int((time.time() - start_time) * 1000)
+                if res.status_code == 200:
+                    return {"status": "ok", "latency_ms": latency, "provider": "anthropic", "model": test_model}
+                else:
+                    return {"status": "error", "message": f"HTTP {res.status_code}: {res.text[:200]}"}
+
+            elif req.provider == "gemini":
+                test_model = req.model or "gemini-3.7-flash"
+                res = await client.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/{test_model}:generateContent?key={api_key}",
+                    headers={"Content-Type": "application/json"},
+                    json={"contents": [{"role": "user", "parts": [{"text": "ping"}]}]}
+                )
+                latency = int((time.time() - start_time) * 1000)
+                if res.status_code == 200:
+                    return {"status": "ok", "latency_ms": latency, "provider": "gemini", "model": test_model}
+                else:
+                    return {"status": "error", "message": f"HTTP {res.status_code}: {res.text[:200]}"}
+
+            else:
+                return {"status": "error", "message": f"Unknown provider: {req.provider}"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+

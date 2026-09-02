@@ -330,10 +330,19 @@ function parseDiffBlocks(text: string): DiffBlock[] {
   const regex = /<{3,9}\s*SEARCH\r?\n([\s\S]*?)\r?\n={3,9}\r?\n([\s\S]*?)(?:\r?\n>{0,9}\s*REPLACE|\r?\n(?=<{3,9}\s*SEARCH)|$)/g;
   let match;
   while ((match = regex.exec(text)) !== null) {
-    const search = match[1].trimEnd();
+    let search = match[1].trimEnd();
     let replace = match[2].trimEnd();
+
+    // Strip any trailing delimiter artifacts
     replace = replace.replace(/\r?\n>{0,9}\s*REPLACE\s*$/, '').trimEnd();
-    if (search.length > 0) {
+    if (replace === '>>>>>>> REPLACE' || replace === '>>>> REPLACE' || replace === 'REPLACE') {
+      replace = '';
+    }
+    
+    // Strip leading SEARCH markers if present
+    search = search.replace(/^<{3,9}\s*SEARCH\r?\n/, '').trimEnd();
+
+    if (search.length > 0 || replace.length > 0) {
       blocks.push({ search, replace });
     }
   }
@@ -989,11 +998,13 @@ interface AgentMessage {
 function VSCodeAgentIDE({
   apiBase,
   models,
+  setModels,
   selectedModel,
   setSelectedModel,
 }: {
   apiBase: string;
   models: string[];
+  setModels?: (m: string[]) => void;
   selectedModel: string;
   setSelectedModel: (m: string) => void;
 }) {
@@ -1003,6 +1014,11 @@ function VSCodeAgentIDE({
   const [gitBranch, setGitBranch] = useState('main');
   const [recentProjects, setRecentProjects] = useState<string[]>(['D:/AIDeV', 'C:/Users/gaura']);
   const [showOpenProjectModal, setShowOpenProjectModal] = useState(false);
+  const [showApiKeysModal, setShowApiKeysModal] = useState(false);
+  const [apiKeys, setApiKeys] = useState<{[provider: string]: {configured: boolean; masked_key: string}}>({});
+  const [apiKeyInputs, setApiKeyInputs] = useState<{[provider: string]: string}>({openai: '', anthropic: '', gemini: ''});
+  const [apiKeySaveStatus, setApiKeySaveStatus] = useState<{[provider: string]: string}>({});
+  const [apiKeyTestStatus, setApiKeyTestStatus] = useState<{[provider: string]: {status: 'testing'|'ok'|'error'; latency?: number; message?: string}}>({});
   const [projectPathInput, setProjectPathInput] = useState('');
   
   // File Explorer State
@@ -1113,6 +1129,7 @@ function VSCodeAgentIDE({
 
   useEffect(() => {
     fetchProjectsAndTree();
+    fetchApiKeyStatus();
   }, [apiBase]);
 
   // Open Any Custom Folder / Project (with create_if_missing)
@@ -1507,6 +1524,85 @@ function VSCodeAgentIDE({
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [activeTabPath, openTabs]);
 
+  // Fetch cloud API key status
+  const fetchApiKeyStatus = async () => {
+    try {
+      const res = await fetch(`${apiBase}/api/cloud/keys`);
+      if (res.ok) {
+        const data = await res.json();
+        setApiKeys(data.providers || {});
+      }
+    } catch (e) {}
+  };
+
+  const handleSaveApiKey = async (provider: string) => {
+    const key = apiKeyInputs[provider]?.trim();
+    if (!key) return;
+    try {
+      const res = await fetch(`${apiBase}/api/cloud/keys`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, api_key: key })
+      });
+      if (res.ok) {
+        setApiKeySaveStatus(prev => ({ ...prev, [provider]: 'Saved' }));
+        setApiKeyInputs(prev => ({ ...prev, [provider]: '' }));
+        fetchApiKeyStatus();
+        // Refresh models list to include cloud models
+        try {
+          const modelsRes = await fetch(`${apiBase}/api/models`);
+          if (modelsRes.ok) {
+            const modelsData = await modelsRes.json();
+            if (setModels) setModels(modelsData.models || []);
+          }
+        } catch (e) {}
+        setTimeout(() => setApiKeySaveStatus(prev => ({ ...prev, [provider]: '' })), 2000);
+      }
+    } catch (e) {
+      setApiKeySaveStatus(prev => ({ ...prev, [provider]: 'Error' }));
+    }
+  };
+
+  const handleClearApiKey = async (provider: string) => {
+    try {
+      const res = await fetch(`${apiBase}/api/cloud/keys/clear`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider })
+      });
+      if (res.ok) {
+        fetchApiKeyStatus();
+        // Refresh models
+        try {
+          const modelsRes = await fetch(`${apiBase}/api/models`);
+          if (modelsRes.ok) {
+            const modelsData = await modelsRes.json();
+            if (setModels) setModels(modelsData.models || []);
+          }
+        } catch (e) {}
+      }
+    } catch (e) {}
+  };
+
+  const handleTestApiKey = async (provider: string) => {
+    setApiKeyTestStatus(prev => ({ ...prev, [provider]: { status: 'testing' } }));
+    try {
+      const res = await fetch(`${apiBase}/api/cloud/keys/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, api_key: apiKeyInputs[provider] || undefined })
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'ok') {
+        setApiKeyTestStatus(prev => ({ ...prev, [provider]: { status: 'ok', latency: data.latency_ms } }));
+      } else {
+        setApiKeyTestStatus(prev => ({ ...prev, [provider]: { status: 'error', message: data.message || 'Connection failed' } }));
+      }
+    } catch (e: any) {
+      setApiKeyTestStatus(prev => ({ ...prev, [provider]: { status: 'error', message: e.message || 'Network error' } }));
+    }
+  };
+
   // Fetch all searchable files for Quick Open
   const fetchAllFiles = async () => {
     try {
@@ -1652,6 +1748,37 @@ function VSCodeAgentIDE({
     if (!active) {
       alert("Please open a file in the editor to apply this surgical diff.");
       return;
+    }
+
+    // Safety Guard: Block lazy placeholder code from being applied
+    const lazyPatterns = [
+      /\/\/\s*\.{3}\s*(rest|remaining|unchanged|continues|code remains)/i,
+      /\/\*\s*\.{3}\s*(rest|remaining|unchanged|continues)/i,
+      /#\s*\.{3}\s*(rest|remaining|unchanged|continues)/i,
+      /\/\/\s*\(rest of/i,
+      /\/\/\s*\.\.\./,
+    ];
+    if (lazyPatterns.some(p => p.test(diffSnippet))) {
+      alert('Blocked: The AI model generated incomplete placeholder code (e.g. "// ... rest of code unchanged"). Refusing to overwrite your file to prevent data loss. Please re-prompt the agent with more specific instructions.');
+      return;
+    }
+
+    // Protection for empty / new files: if editor is empty, populate full code directly
+    if (editorContent.trim().length < 15) {
+      const blocks = parseDiffBlocks(diffSnippet);
+      if (blocks.length > 0) {
+        const codeToUse = (blocks[0].replace.trim().length > 0 && blocks[0].replace.trim() !== '>>>>>>> REPLACE')
+          ? blocks[0].replace
+          : blocks[0].search;
+        if (codeToUse.trim().length > 0) {
+          setEditorContent(codeToUse);
+          setIsDirty(codeToUse !== active.original);
+          setOpenTabs(prev => prev.map(t => t.path === activeTabPath ? { ...t, content: codeToUse } : t));
+          setLastAppliedNotice(`✓ Populated ${active.name} with code • (Ctrl+S to save)`);
+          setTimeout(() => setLastAppliedNotice(null), 5000);
+          return;
+        }
+      }
     }
 
     const result = applyDiffBlocks(editorContent, diffSnippet);
@@ -2604,7 +2731,7 @@ function VSCodeAgentIDE({
                 className="w-full bg-transparent text-[#cbd5e1] p-2.5 text-[12px] font-mono focus:outline-none resize-none custom-scrollbar placeholder-[#475569] select-text"
               />
               <div className="flex justify-between items-center gap-2 px-2.5 pb-2 select-none min-w-0">
-                <div className="min-w-0 flex-1 max-w-[200px]">
+                <div className="min-w-0 flex-1 max-w-[200px] flex items-center gap-1.5">
                   <select
                     value={selectedModel}
                     onChange={(e) => setSelectedModel(e.target.value)}
@@ -2615,6 +2742,16 @@ function VSCodeAgentIDE({
                       <option key={m} value={m} className="bg-[#0c0e12]">{m}</option>
                     ))}
                   </select>
+                  <button
+                    onClick={() => { setShowApiKeysModal(true); fetchApiKeyStatus(); }}
+                    title="Configure Cloud LLM API Keys"
+                    className="flex-shrink-0 text-[#64748b] hover:text-[#60a5fa] bg-[#12151c] hover:bg-[#1e293b] p-1 rounded border border-[#1e232e] cursor-pointer transition-colors"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="3"/>
+                      <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                    </svg>
+                  </button>
                 </div>
 
                 <button
@@ -2746,6 +2883,169 @@ function VSCodeAgentIDE({
         </div>
       )}
 
+      {/* ── Cloud LLM API Keys Settings Modal ──────────────────── */}
+      {showApiKeysModal && (
+        <div 
+          className="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-4"
+          onClick={() => setShowApiKeysModal(false)}
+        >
+          <div 
+            className="bg-[#0c0e12] border border-[#1e232e] rounded-xl max-w-[520px] w-full shadow-2xl overflow-hidden shadow-black/80 flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 border-b border-[#161922] bg-[#090b0e] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <span className="text-[13px] font-mono font-bold text-[#e2e5ea]">Cloud LLM API Keys</span>
+              </div>
+              <button onClick={() => setShowApiKeysModal(false)} className="text-[#64748b] hover:text-[#cbd5e1] cursor-pointer">
+                <Icons.Close />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4 max-h-[480px] overflow-y-auto custom-scrollbar">
+              <p className="text-[11px] font-mono text-[#64748b] leading-relaxed">
+                Configure API keys for cloud LLM providers. Keys are stored persistently on the server and remain until manually cleared.
+              </p>
+
+              {/* OpenAI */}
+              <div className="border border-[#1e232e] rounded-lg p-3 bg-[#090b0e] space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="1.5"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7l5-8v4h4l-5 8z"/></svg>
+                    <span className="text-[12px] font-mono font-bold text-[#e2e5ea]">OpenAI</span>
+                    <span className="text-[9px] font-mono text-[#475569]">gpt-4.1 / o3 / o4-mini</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {apiKeyTestStatus.openai?.status === 'ok' && (
+                      <span className="text-[9px] font-mono text-[#10b981] bg-[#10b981]/10 px-2 py-0.5 rounded">Connected ({apiKeyTestStatus.openai.latency}ms)</span>
+                    )}
+                    {apiKeyTestStatus.openai?.status === 'error' && (
+                      <span className="text-[9px] font-mono text-[#ef4444] bg-[#ef4444]/10 px-2 py-0.5 rounded max-w-[180px] truncate" title={apiKeyTestStatus.openai.message}>{apiKeyTestStatus.openai.message}</span>
+                    )}
+                    {apiKeys.openai?.configured && !apiKeyTestStatus.openai?.status && (
+                      <span className="text-[9px] font-mono text-[#10b981] bg-[#10b981]/10 px-2 py-0.5 rounded">Active: {apiKeys.openai.masked_key}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="password"
+                    value={apiKeyInputs.openai || ''}
+                    onChange={(e) => setApiKeyInputs(prev => ({ ...prev, openai: e.target.value }))}
+                    placeholder={apiKeys.openai?.configured ? 'Key configured — enter new to replace' : 'sk-...'}
+                    className="flex-1 bg-[#12151c] text-[11px] font-mono text-[#e2e5ea] px-2.5 py-1.5 rounded border border-[#1e232e] focus:outline-none focus:border-[#3b82f6] placeholder-[#475569]"
+                  />
+                  <button onClick={() => handleSaveApiKey('openai')} className="text-[10px] font-mono bg-[#1e293b] hover:bg-[#3b82f6] text-[#60a5fa] hover:text-white px-3 py-1.5 rounded border border-[#3b82f6]/40 cursor-pointer transition-colors">
+                    {apiKeySaveStatus.openai || 'Save'}
+                  </button>
+                  <button 
+                    onClick={() => handleTestApiKey('openai')}
+                    disabled={apiKeyTestStatus.openai?.status === 'testing' || (!apiKeys.openai?.configured && !apiKeyInputs.openai?.trim())}
+                    className="text-[10px] font-mono bg-[#12151c] hover:bg-[#1e293b] text-[#94a3b8] hover:text-[#e2e5ea] disabled:opacity-40 px-2.5 py-1.5 rounded border border-[#1e232e] cursor-pointer transition-colors"
+                  >
+                    {apiKeyTestStatus.openai?.status === 'testing' ? 'Testing...' : 'Test'}
+                  </button>
+                  {apiKeys.openai?.configured && (
+                    <button onClick={() => handleClearApiKey('openai')} className="text-[10px] font-mono text-[#ef4444] hover:bg-[#ef4444]/10 px-2 py-1.5 rounded border border-[#ef4444]/30 cursor-pointer transition-colors">Clear</button>
+                  )}
+                </div>
+              </div>
+
+              {/* Anthropic */}
+              <div className="border border-[#1e232e] rounded-lg p-3 bg-[#090b0e] space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="1.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    <span className="text-[12px] font-mono font-bold text-[#e2e5ea]">Anthropic</span>
+                    <span className="text-[9px] font-mono text-[#475569]">claude-sonnet-4 / claude-haiku-4</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {apiKeyTestStatus.anthropic?.status === 'ok' && (
+                      <span className="text-[9px] font-mono text-[#10b981] bg-[#10b981]/10 px-2 py-0.5 rounded">Connected ({apiKeyTestStatus.anthropic.latency}ms)</span>
+                    )}
+                    {apiKeyTestStatus.anthropic?.status === 'error' && (
+                      <span className="text-[9px] font-mono text-[#ef4444] bg-[#ef4444]/10 px-2 py-0.5 rounded max-w-[180px] truncate" title={apiKeyTestStatus.anthropic.message}>{apiKeyTestStatus.anthropic.message}</span>
+                    )}
+                    {apiKeys.anthropic?.configured && !apiKeyTestStatus.anthropic?.status && (
+                      <span className="text-[9px] font-mono text-[#f59e0b] bg-[#f59e0b]/10 px-2 py-0.5 rounded">Active: {apiKeys.anthropic.masked_key}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="password"
+                    value={apiKeyInputs.anthropic || ''}
+                    onChange={(e) => setApiKeyInputs(prev => ({ ...prev, anthropic: e.target.value }))}
+                    placeholder={apiKeys.anthropic?.configured ? 'Key configured — enter new to replace' : 'sk-ant-...'}
+                    className="flex-1 bg-[#12151c] text-[11px] font-mono text-[#e2e5ea] px-2.5 py-1.5 rounded border border-[#1e232e] focus:outline-none focus:border-[#3b82f6] placeholder-[#475569]"
+                  />
+                  <button onClick={() => handleSaveApiKey('anthropic')} className="text-[10px] font-mono bg-[#1e293b] hover:bg-[#3b82f6] text-[#60a5fa] hover:text-white px-3 py-1.5 rounded border border-[#3b82f6]/40 cursor-pointer transition-colors">
+                    {apiKeySaveStatus.anthropic || 'Save'}
+                  </button>
+                  <button 
+                    onClick={() => handleTestApiKey('anthropic')}
+                    disabled={apiKeyTestStatus.anthropic?.status === 'testing' || (!apiKeys.anthropic?.configured && !apiKeyInputs.anthropic?.trim())}
+                    className="text-[10px] font-mono bg-[#12151c] hover:bg-[#1e293b] text-[#94a3b8] hover:text-[#e2e5ea] disabled:opacity-40 px-2.5 py-1.5 rounded border border-[#1e232e] cursor-pointer transition-colors"
+                  >
+                    {apiKeyTestStatus.anthropic?.status === 'testing' ? 'Testing...' : 'Test'}
+                  </button>
+                  {apiKeys.anthropic?.configured && (
+                    <button onClick={() => handleClearApiKey('anthropic')} className="text-[10px] font-mono text-[#ef4444] hover:bg-[#ef4444]/10 px-2 py-1.5 rounded border border-[#ef4444]/30 cursor-pointer transition-colors">Clear</button>
+                  )}
+                </div>
+              </div>
+
+              {/* Google Gemini */}
+              <div className="border border-[#1e232e] rounded-lg p-3 bg-[#090b0e] space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    <span className="text-[12px] font-mono font-bold text-[#e2e5ea]">Google Gemini</span>
+                    <span className="text-[9px] font-mono text-[#475569]">gemini-3.7-flash / gemini-3.1-pro / gemini-3.5-flash</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {apiKeyTestStatus.gemini?.status === 'ok' && (
+                      <span className="text-[9px] font-mono text-[#10b981] bg-[#10b981]/10 px-2 py-0.5 rounded">Connected ({apiKeyTestStatus.gemini.latency}ms)</span>
+                    )}
+                    {apiKeyTestStatus.gemini?.status === 'error' && (
+                      <span className="text-[9px] font-mono text-[#ef4444] bg-[#ef4444]/10 px-2 py-0.5 rounded max-w-[180px] truncate" title={apiKeyTestStatus.gemini.message}>{apiKeyTestStatus.gemini.message}</span>
+                    )}
+                    {apiKeys.gemini?.configured && !apiKeyTestStatus.gemini?.status && (
+                      <span className="text-[9px] font-mono text-[#818cf8] bg-[#818cf8]/10 px-2 py-0.5 rounded">Active: {apiKeys.gemini.masked_key}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="password"
+                    value={apiKeyInputs.gemini || ''}
+                    onChange={(e) => setApiKeyInputs(prev => ({ ...prev, gemini: e.target.value }))}
+                    placeholder={apiKeys.gemini?.configured ? 'Key configured — enter new to replace' : 'AIza...'}
+                    className="flex-1 bg-[#12151c] text-[11px] font-mono text-[#e2e5ea] px-2.5 py-1.5 rounded border border-[#1e232e] focus:outline-none focus:border-[#3b82f6] placeholder-[#475569]"
+                  />
+                  <button onClick={() => handleSaveApiKey('gemini')} className="text-[10px] font-mono bg-[#1e293b] hover:bg-[#3b82f6] text-[#60a5fa] hover:text-white px-3 py-1.5 rounded border border-[#3b82f6]/40 cursor-pointer transition-colors">
+                    {apiKeySaveStatus.gemini || 'Save'}
+                  </button>
+                  <button 
+                    onClick={() => handleTestApiKey('gemini')}
+                    disabled={apiKeyTestStatus.gemini?.status === 'testing' || (!apiKeys.gemini?.configured && !apiKeyInputs.gemini?.trim())}
+                    className="text-[10px] font-mono bg-[#12151c] hover:bg-[#1e293b] text-[#94a3b8] hover:text-[#e2e5ea] disabled:opacity-40 px-2.5 py-1.5 rounded border border-[#1e232e] cursor-pointer transition-colors"
+                  >
+                    {apiKeyTestStatus.gemini?.status === 'testing' ? 'Testing...' : 'Test'}
+                  </button>
+                  {apiKeys.gemini?.configured && (
+                    <button onClick={() => handleClearApiKey('gemini')} className="text-[10px] font-mono text-[#ef4444] hover:bg-[#ef4444]/10 px-2 py-1.5 rounded border border-[#ef4444]/30 cursor-pointer transition-colors">Clear</button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Quick Open (Ctrl+P) Search Modal ────────────────────── */}
       {showQuickOpen && (
         <div 
@@ -2783,12 +3083,15 @@ function VSCodeAgentIDE({
                     if (filtered.length > 0 && filtered[quickOpenIndex]) {
                       handleOpenFile(filtered[quickOpenIndex].path);
                       setShowQuickOpen(false);
+                    } else if (quickOpenQuery.trim()) {
+                      handleOpenFile(quickOpenQuery.trim());
+                      setShowQuickOpen(false);
                     }
                   } else if (e.key === 'Escape') {
                     setShowQuickOpen(false);
                   }
                 }}
-                placeholder="Type a file name to search and open (e.g. main.py, page.tsx, docker-compose.yml)..."
+                placeholder="Type a file name or path across all drives (e.g. main.py, C:/Users/gaura/test.py)..."
                 className="w-full bg-transparent text-[12.5px] font-mono text-[#e2e5ea] focus:outline-none placeholder-[#475569]"
               />
               <span className="text-[10px] font-mono text-[#64748b] bg-[#12151c] px-2 py-0.5 rounded border border-[#1e232e]">
@@ -2805,8 +3108,20 @@ function VSCodeAgentIDE({
                 );
                 if (filtered.length === 0) {
                   return (
-                    <div className="p-4 text-center text-[11.5px] font-mono text-[#64748b]">
-                      No matching files found in workspace.
+                    <div className="p-4 text-center text-[11.5px] font-mono text-[#64748b] space-y-2">
+                      <div>No matching files found in workspace tree.</div>
+                      {quickOpenQuery.trim() && (
+                        <button
+                          onClick={() => {
+                            handleOpenFile(quickOpenQuery.trim());
+                            setShowQuickOpen(false);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#1e293b] hover:bg-[#3b82f6] text-[#60a5fa] hover:text-white border border-[#3b82f6]/40 transition-colors text-[11px] cursor-pointer"
+                        >
+                          <Icons.FileCode />
+                          <span>Open "{quickOpenQuery.trim()}" from disk</span>
+                        </button>
+                      )}
                     </div>
                   );
                 }
@@ -3190,6 +3505,7 @@ export default function Home() {
           <VSCodeAgentIDE
             apiBase={API_BASE}
             models={models}
+            setModels={setModels}
             selectedModel={selectedModel}
             setSelectedModel={setSelectedModel}
           />
