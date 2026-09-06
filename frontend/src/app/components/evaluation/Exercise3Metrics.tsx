@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { EVALUATION_DATA } from './evaluationData';
+import { HallucinationExplainer } from './HallucinationExplainer';
 
 export function Exercise3Metrics() {
   const [activeChartTab, setActiveChartTab] = useState<'accuracy' | 'latency' | 'tokens' | 'resources'>('accuracy');
@@ -79,17 +80,22 @@ export function Exercise3Metrics() {
           </div>
 
           {/* Hallucination Detection */}
-          <div className="p-4 rounded-xl bg-[#0a0d14] border border-[#1c2436] space-y-2">
-            <div className="flex items-center justify-between text-xs font-mono">
-              <span className="font-bold text-[#f43f5e]">3. Hallucination Detection</span>
-              <span className="text-[10px] text-[#64748b] bg-[#121622] px-2 py-0.5 rounded">Quality</span>
+          <div className="p-4 rounded-xl bg-[#0a0d14] border border-[#1c2436] space-y-2 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between text-xs font-mono">
+                <span className="font-bold text-[#f43f5e]">3. Hallucination Detection</span>
+                <span className="text-[10px] text-[#64748b] bg-[#121622] px-2 py-0.5 rounded">Quality</span>
+              </div>
+              <div className="p-2.5 bg-[#07090e] rounded-lg border border-[#141a26] text-center font-mono text-[11px] text-[#fb7185] my-2">
+                Flag = 1 if ∃ (e ∉ OpenAPI<sub>74</sub>), else 0
+              </div>
+              <p className="text-[11px] text-[#8b949e] leading-relaxed">
+                Regex endpoint extraction (<code className="text-[#fb7185]">(GET|POST) /path</code>) validated against 74 canonical OpenAPI endpoints.
+              </p>
             </div>
-            <div className="p-2.5 bg-[#07090e] rounded-lg border border-[#141a26] text-center font-mono text-[11px] text-[#fb7185]">
-              Flag = 1 if ∃ (e ∉ OpenAPI<sub>74</sub>), else 0
+            <div className="pt-2 border-t border-[#141a26]">
+              <HallucinationExplainer triggerText="View Detection & Judge Anti-Hallucination Safeguards" compact />
             </div>
-            <p className="text-[11px] text-[#8b949e] leading-relaxed">
-              Regex endpoint extraction (<code className="text-[#fb7185]">(GET|POST) /path</code>) validated against 74 canonical OpenAPI endpoints.
-            </p>
           </div>
 
           {/* Code Test-Pass Rate */}
@@ -229,16 +235,16 @@ export function Exercise3Metrics() {
 
               <tr className="hover:bg-[#101520] transition-colors">
                 <td className="py-3 px-4 font-medium text-[#e2e5ea]">
-                  Total Hallucinations Flagged
+                  <HallucinationExplainer triggerText="Total Hallucinations Flagged" />
                 </td>
                 <td className="py-3 px-4 border-l border-[#1a2233]">
-                  <span className="text-[#cbd5e1]">{gemma?.total_hallucinations || 5} occurrences</span>
+                  <HallucinationExplainer badgeCount={`${gemma?.total_hallucinations ?? 6} flagged`} compact />
                 </td>
                 <td className="py-3 px-4 border-l border-[#1a2233]">
-                  <span className="text-[#cbd5e1]">{codellama?.total_hallucinations || 6} occurrences</span>
+                  <HallucinationExplainer badgeCount={`${codellama?.total_hallucinations ?? 7} flagged`} compact />
                 </td>
                 <td className="py-3 px-4 border-l border-[#1a2233]">
-                  <span className="text-[#cbd5e1]">{starcoder?.total_hallucinations || 4} occurrences</span>
+                  <HallucinationExplainer badgeCount={`${starcoder?.total_hallucinations ?? 9} flagged`} compact />
                 </td>
               </tr>
 

@@ -7,6 +7,39 @@ interface Exercise2DatasetProps {
   onNavigateTab?: (tabIndex: number) => void;
 }
 
+const GROUP_PERFORMANCE_INSIGHTS: Record<string, { winner: string; score: string; why: string; tagColor: string }> = {
+  "Group 1: Single-File Retrieval": {
+    winner: "gemma3:4b",
+    score: "47.1%",
+    why: "Precise grounded extraction from single-file YAML snippets without prompt echoing or filler text.",
+    tagColor: "text-[#38bdf8] border-[#0284c7]/40 bg-[#0284c7]/10"
+  },
+  "Group 2: Two-File Cross-Referencing": {
+    winner: "gemma3:4b (46.4%) & codellama:7b (44.8%)",
+    score: "46.4%",
+    why: "Both models effectively cross-correlated disjoint auth specs (slack_dev_guide) with transactional endpoints.",
+    tagColor: "text-[#a78bfa] border-[#7c3aed]/40 bg-[#7c3aed]/10"
+  },
+  "Group 3: Multi-File / Multi-Hop": {
+    winner: "codellama:7b",
+    score: "50.0%",
+    why: "Larger 6.7B context memory preserves multi-step sequential dependencies (GitHub push -> CI/CD -> Slack).",
+    tagColor: "text-[#fb7185] border-[#f43f5e]/40 bg-[#f43f5e]/10"
+  },
+  "Group 4: Retrieval Failure / Decoy": {
+    winner: "gemma3:4b",
+    score: "61.3%",
+    why: "Superior adherence to negative constraints; explicitly noted missing data rather than hallucinating routes.",
+    tagColor: "text-[#fbbf24] border-[#d97706]/40 bg-[#d97706]/10"
+  },
+  "Group 5: Code Generation": {
+    winner: "gemma3:4b",
+    score: "66.7%",
+    why: "Clean self-contained Python scripts meeting exact test assertions without extraneous boilerplate.",
+    tagColor: "text-[#34d399] border-[#10b981]/40 bg-[#10b981]/10"
+  }
+};
+
 export function Exercise2Dataset({ onSelectTraceQuestion, onNavigateTab }: Exercise2DatasetProps) {
   const [selectedGroup, setSelectedGroup] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -64,19 +97,69 @@ export function Exercise2Dataset({ onSelectTraceQuestion, onNavigateTab }: Exerc
         </blockquote>
       </div>
 
-      {/* Dataset Summary Scorecards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+      {/* Dataset Summary Scorecards with Category Winners & Why */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
         {[
-          { label: "Single-File Retrieval", count: 7, desc: "Exact BM25/Dense lookups", color: "text-[#38bdf8] border-[#0284c7]/30" },
-          { label: "Two-File Cross-Ref", count: 7, desc: "Relational cross-spec joins", color: "text-[#a78bfa] border-[#7c3aed]/30" },
-          { label: "Multi-Hop Reasoning", count: 5, desc: "3+ files pipeline chains", color: "text-[#f43f5e] border-[#e11d48]/30" },
-          { label: "Decoy & Failures", count: 4, desc: "Hard negatives & glossaries", color: "text-[#fbbf24] border-[#d97706]/30" },
-          { label: "Code Generation", count: 3, desc: "Executable Python & tests", color: "text-[#10b981] border-[#059669]/30" }
+          { 
+            groupKey: "Group 1: Single-File Retrieval",
+            label: "Single-File Retrieval", 
+            count: 7, 
+            desc: "Exact BM25/Dense lookups", 
+            color: "text-[#38bdf8] border-[#0284c7]/30",
+            winner: "gemma3:4b (47.1%)",
+            why: "Direct factual grounding in single YAML docs."
+          },
+          { 
+            groupKey: "Group 2: Two-File Cross-Referencing",
+            label: "Two-File Cross-Ref", 
+            count: 7, 
+            desc: "Relational cross-spec joins", 
+            color: "text-[#a78bfa] border-[#7c3aed]/30",
+            winner: "gemma3:4b / codellama:7b",
+            why: "Correlating separate auth guides & endpoints."
+          },
+          { 
+            groupKey: "Group 3: Multi-File / Multi-Hop",
+            label: "Multi-Hop Reasoning", 
+            count: 5, 
+            desc: "3+ files pipeline chains", 
+            color: "text-[#fb7185] border-[#f43f5e]/30",
+            winner: "codellama:7b (50.0%)",
+            why: "6.7B context retains multi-step sequence order."
+          },
+          { 
+            groupKey: "Group 4: Retrieval Failure / Decoy",
+            label: "Decoy & Failures", 
+            count: 4, 
+            desc: "Hard negatives & glossaries", 
+            color: "text-[#fbbf24] border-[#d97706]/30",
+            winner: "gemma3:4b (61.3%)",
+            why: "Resists adversarial distractor documents."
+          },
+          { 
+            groupKey: "Group 5: Code Generation",
+            label: "Code Generation", 
+            count: 3, 
+            desc: "Executable Python & tests", 
+            color: "text-[#34d399] border-[#059669]/30",
+            winner: "gemma3:4b (66.7%)",
+            why: "Executable scripts passing unit assertions."
+          }
         ].map((cat, i) => (
-          <div key={i} className={`p-3.5 rounded-xl bg-[#090c12] border ${cat.color} text-center space-y-1`}>
-            <div className="text-[11px] font-mono text-[#64748b] truncate">{cat.label}</div>
-            <div className={`text-xl font-bold font-mono ${cat.color.split(' ')[0]}`}>{cat.count}</div>
-            <div className="text-[10px] text-[#475569] truncate">{cat.desc}</div>
+          <div key={i} className={`p-3.5 rounded-xl bg-[#090c12] border ${cat.color} text-center space-y-2 flex flex-col justify-between`}>
+            <div>
+              <div className="text-[11px] font-mono text-[#64748b] truncate">{cat.label}</div>
+              <div className={`text-xl font-bold font-mono ${cat.color.split(' ')[0]} mt-0.5`}>{cat.count}</div>
+              <div className="text-[10px] text-[#475569] truncate">{cat.desc}</div>
+            </div>
+            <div className="pt-2 border-t border-[#161c28] text-left">
+              <div className="text-[9.5px] font-mono font-bold text-[#10b981] truncate">
+                🏆 Best: {cat.winner}
+              </div>
+              <div className="text-[9px] text-[#8b949e] font-sans line-clamp-2 mt-0.5">
+                {cat.why}
+              </div>
+            </div>
           </div>
         ))}
       </div>
@@ -192,6 +275,11 @@ export function Exercise2Dataset({ onSelectTraceQuestion, onNavigateTab }: Exerc
                         Ex 6 Multi-Hop
                       </span>
                     )}
+                    {GROUP_PERFORMANCE_INSIGHTS[q.group] && (
+                      <span className="text-[9.5px] font-mono px-1.5 py-0.2 rounded bg-[#10b981]/10 text-[#34d399] border border-[#10b981]/25">
+                        🏆 Best: {GROUP_PERFORMANCE_INSIGHTS[q.group].winner.split(' ')[0]}
+                      </span>
+                    )}
                   </div>
                 </td>
 
@@ -298,6 +386,18 @@ export function Exercise2Dataset({ onSelectTraceQuestion, onNavigateTab }: Exerc
                   ))}
                 </div>
               </div>
+
+              {GROUP_PERFORMANCE_INSIGHTS[selectedQuestion.group] && (
+                <div className="p-3.5 rounded-xl bg-[#091218] border border-[#10b981]/30 space-y-1.5">
+                  <div className="text-xs font-bold font-mono text-[#10b981] flex items-center gap-1.5">
+                    <span>🏆 Best Model for this Question Group:</span>
+                    <span className="text-white">{GROUP_PERFORMANCE_INSIGHTS[selectedQuestion.group].winner}</span>
+                  </div>
+                  <p className="text-[11.5px] text-[#94a3b8] font-sans leading-relaxed">
+                    <strong className="text-[#cbd5e1]">Why it excelled:</strong> {GROUP_PERFORMANCE_INSIGHTS[selectedQuestion.group].why}
+                  </p>
+                </div>
+              )}
 
               <div className="pt-2 border-t border-[#192132] flex items-center justify-between">
                 <div className="flex items-center gap-2">

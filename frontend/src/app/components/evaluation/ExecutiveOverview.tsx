@@ -1,6 +1,7 @@
 "use client";
 import React from 'react';
 import { EVALUATION_DATA } from './evaluationData';
+import { HallucinationExplainer } from './HallucinationExplainer';
 
 interface ExecutiveOverviewProps {
   onNavigateTab: (tabIndex: number) => void;
@@ -8,6 +9,10 @@ interface ExecutiveOverviewProps {
 }
 
 export function ExecutiveOverview({ onNavigateTab, onOpenJson }: ExecutiveOverviewProps) {
+  const gemmaSummary = EVALUATION_DATA.exercise_1.models.find(m => m.model === 'gemma3:4b');
+  const codellamaSummary = EVALUATION_DATA.exercise_1.models.find(m => m.model === 'codellama:7b');
+  const starcoderSummary = EVALUATION_DATA.exercise_1.models.find(m => m.model === 'starcoder2:3b');
+
   const gemma = EVALUATION_DATA.exercise_3.per_model_aggregates["gemma3:4b"];
   const codellama = EVALUATION_DATA.exercise_3.per_model_aggregates["codellama:7b"];
   const starcoder = EVALUATION_DATA.exercise_3.per_model_aggregates["starcoder2:3b"];
@@ -140,27 +145,29 @@ export function ExecutiveOverview({ onNavigateTab, onOpenJson }: ExecutiveOvervi
               <div className="space-y-2.5 bg-[#07090e] p-3.5 rounded-xl border border-[#161a26] font-mono text-xs mb-4">
                 <div className="flex justify-between items-center">
                   <span className="text-[#64748b]">Accuracy / Correctness:</span>
-                  <span className="text-[#34d399] font-bold text-sm">82.56%</span>
+                  <span className="text-[#34d399] font-bold text-sm">
+                    {((gemmaSummary?.average_correctness ?? 0.4808) * 100).toFixed(1)}%
+                  </span>
                 </div>
                 <div className="w-full bg-[#161b26] h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-[#10b981] h-full rounded-full" style={{ width: '82.56%' }} />
+                  <div className="bg-[#10b981] h-full rounded-full" style={{ width: `${((gemmaSummary?.average_correctness ?? 0.4808) * 100).toFixed(1)}%` }} />
                 </div>
 
                 <div className="flex justify-between items-center pt-1 border-t border-[#121620]">
                   <span className="text-[#64748b]">Avg Latency:</span>
-                  <span className="text-[#60a5fa] font-bold">15.75s (Lowest)</span>
+                  <span className="text-[#60a5fa] font-bold">{(gemmaSummary?.average_latency_seconds ?? 33.21).toFixed(2)}s</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[#64748b]">Avg Token Count:</span>
-                  <span className="text-[#cbd5e1] font-semibold">1,042.4 tok</span>
+                  <span className="text-[#cbd5e1] font-semibold">{(gemmaSummary?.average_tokens ?? 921.3).toFixed(1)} tok</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[#64748b]">Code Pass Rate:</span>
-                  <span className="text-[#fbbf24] font-semibold">66.7% (2/3)</span>
+                  <span className="text-[#fbbf24] font-semibold">33.3% (1/3)</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[#64748b]">Hallucinations:</span>
-                  <span className="text-[#94a3b8] font-semibold">{gemma?.total_hallucinations || 5} flagged</span>
+                  <HallucinationExplainer badgeCount={`${gemma?.total_hallucinations ?? 6} flagged`} compact />
                 </div>
               </div>
             </div>
@@ -180,7 +187,7 @@ export function ExecutiveOverview({ onNavigateTab, onOpenJson }: ExecutiveOvervi
           {/* CodeLlama 7B Card */}
           <div className="rounded-2xl bg-[#0c0f17] border border-[#2b354c] p-5 relative overflow-hidden shadow-xl hover:border-[#60a5fa]/60 transition-all flex flex-col justify-between">
             <div className="absolute top-0 right-0 bg-[#0284c7] text-white text-[10px] font-mono font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider shadow">
-              ⚡ Code Champion
+              ⚡ Multi-Hop &amp; Syntax Pro
             </div>
 
             <div>
@@ -195,39 +202,41 @@ export function ExecutiveOverview({ onNavigateTab, onOpenJson }: ExecutiveOvervi
               </div>
 
               <p className="text-xs text-[#94a3b8] leading-relaxed mb-4">
-                Code-specialized instruction model delivering flawless executable Python scripts, assertions, and strict parameter handling.
+                Code-specialized instruction model with large 16k context window; dominates multi-hop sequential reasoning and structured payloads.
               </p>
 
               <div className="space-y-2.5 bg-[#07090e] p-3.5 rounded-xl border border-[#161a26] font-mono text-xs mb-4">
                 <div className="flex justify-between items-center">
                   <span className="text-[#64748b]">Accuracy / Correctness:</span>
-                  <span className="text-[#38bdf8] font-bold text-sm">81.79%</span>
+                  <span className="text-[#38bdf8] font-bold text-sm">
+                    {((codellamaSummary?.average_correctness ?? 0.4090) * 100).toFixed(1)}%
+                  </span>
                 </div>
                 <div className="w-full bg-[#161b26] h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-[#38bdf8] h-full rounded-full" style={{ width: '81.79%' }} />
+                  <div className="bg-[#38bdf8] h-full rounded-full" style={{ width: `${((codellamaSummary?.average_correctness ?? 0.4090) * 100).toFixed(1)}%` }} />
                 </div>
 
                 <div className="flex justify-between items-center pt-1 border-t border-[#121620]">
                   <span className="text-[#64748b]">Avg Latency:</span>
-                  <span className="text-[#cbd5e1] font-semibold">25.09s</span>
+                  <span className="text-[#cbd5e1] font-semibold">{(codellamaSummary?.average_latency_seconds ?? 47.89).toFixed(2)}s</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[#64748b]">Avg Token Count:</span>
-                  <span className="text-[#cbd5e1] font-semibold">1,016.2 tok</span>
+                  <span className="text-[#cbd5e1] font-semibold">{(codellamaSummary?.average_tokens ?? 580.2).toFixed(1)} tok</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[#64748b]">Code Pass Rate:</span>
-                  <span className="text-[#10b981] font-bold text-sm">100.0% (3/3)</span>
+                  <span className="text-[#10b981] font-bold text-sm">22.2%</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[#64748b]">Hallucinations:</span>
-                  <span className="text-[#94a3b8] font-semibold">{codellama?.total_hallucinations || 6} flagged</span>
+                  <HallucinationExplainer badgeCount={`${codellama?.total_hallucinations ?? 7} flagged`} compact />
                 </div>
               </div>
             </div>
 
             <div className="pt-3 border-t border-[#161a26] flex items-center justify-between text-[11px] font-mono">
-              <span className="text-[#10b981] font-semibold">Best for: Code Synthesis</span>
+              <span className="text-[#10b981] font-semibold">Best for: Multi-Hop API Chains</span>
               <button
                 onClick={() => onNavigateTab(4)}
                 className="text-[#60a5fa] hover:text-[#93c5fd] cursor-pointer flex items-center gap-1"
@@ -241,7 +250,7 @@ export function ExecutiveOverview({ onNavigateTab, onOpenJson }: ExecutiveOvervi
           {/* StarCoder2 3B Card */}
           <div className="rounded-2xl bg-[#0c0f17] border border-[#2b354c] p-5 relative overflow-hidden shadow-xl hover:border-[#f59e0b]/50 transition-all flex flex-col justify-between">
             <div className="absolute top-0 right-0 bg-[#d97706] text-white text-[10px] font-mono font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider shadow">
-              ⚠️ Completion Model
+              ⚠️ Base Completion
             </div>
 
             <div>
@@ -256,39 +265,41 @@ export function ExecutiveOverview({ onNavigateTab, onOpenJson }: ExecutiveOvervi
               </div>
 
               <p className="text-xs text-[#94a3b8] leading-relaxed mb-4">
-                Raw code-completion model without instruction-tuning; frequently loops or hallucinates multi-choice quiz formats on open Q&amp;A.
+                Raw code-completion model without instruction tuning; loops repeatedly, regurgitates prompt boilerplate, and hit 8 timeouts.
               </p>
 
               <div className="space-y-2.5 bg-[#07090e] p-3.5 rounded-xl border border-[#161a26] font-mono text-xs mb-4">
                 <div className="flex justify-between items-center">
                   <span className="text-[#64748b]">Accuracy / Correctness:</span>
-                  <span className="text-[#f87171] font-bold text-sm">50.58%</span>
+                  <span className="text-[#f87171] font-bold text-sm">
+                    {((starcoderSummary?.average_correctness ?? 0.0962) * 100).toFixed(1)}%
+                  </span>
                 </div>
                 <div className="w-full bg-[#161b26] h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-[#f87171] h-full rounded-full" style={{ width: '50.58%' }} />
+                  <div className="bg-[#f87171] h-full rounded-full" style={{ width: `${Math.max(6, (starcoderSummary?.average_correctness ?? 0.0962) * 100).toFixed(1)}%` }} />
                 </div>
 
                 <div className="flex justify-between items-center pt-1 border-t border-[#121620]">
                   <span className="text-[#64748b]">Avg Latency:</span>
-                  <span className="text-[#f87171] font-semibold">63.25s (High)</span>
+                  <span className="text-[#cbd5e1] font-semibold">{(starcoderSummary?.average_latency_seconds ?? 32.93).toFixed(2)}s</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[#64748b]">Avg Token Count:</span>
-                  <span className="text-[#fca5a5] font-semibold">1,753.8 tok</span>
+                  <span className="text-[#fca5a5] font-semibold">{(starcoderSummary?.average_tokens ?? 1086.9).toFixed(1)} tok</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[#64748b]">Code Pass Rate:</span>
-                  <span className="text-[#f87171] font-semibold">33.3% (1/3)</span>
+                  <span className="text-[#f87171] font-semibold">0.0% (0/3)</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[#64748b]">Hallucinations:</span>
-                  <span className="text-[#94a3b8] font-semibold">{starcoder?.total_hallucinations || 4} flagged</span>
+                  <HallucinationExplainer badgeCount={`${starcoder?.total_hallucinations ?? 9} flagged`} compact />
                 </div>
               </div>
             </div>
 
             <div className="pt-3 border-t border-[#161a26] flex items-center justify-between text-[11px] font-mono">
-              <span className="text-[#f59e0b] font-semibold">Limitation: Lacks Chat Fine-Tuning</span>
+              <span className="text-[#f59e0b] font-semibold">Limitation: No Chat Alignment</span>
               <button
                 onClick={() => onNavigateTab(4)}
                 className="text-[#60a5fa] hover:text-[#93c5fd] cursor-pointer flex items-center gap-1"
@@ -297,6 +308,185 @@ export function ExecutiveOverview({ onNavigateTab, onOpenJson }: ExecutiveOvervi
                 <span>→</span>
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Category-by-Category Model Performance Matrix ── */}
+      <div className="p-6 rounded-2xl bg-[#0b0f17] border border-[#1b253b] space-y-5 shadow-xl">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#162035] pb-4">
+          <div>
+            <h3 className="text-base font-bold text-[#f1f5f9] font-mono flex items-center gap-2">
+              <span>📊 Category-by-Category Performance &amp; Winning Model</span>
+            </h3>
+            <p className="text-xs text-[#64748b] font-mono mt-0.5">
+              Empirical breakdown showing which model won each functional question group and why
+            </p>
+          </div>
+          <span className="text-[11px] font-mono text-[#10b981] bg-[#10b981]/15 px-2.5 py-1 rounded border border-[#10b981]/30">
+            Judged by Qwen 2.5 7B CoT
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3.5 font-mono">
+          {/* Group 1 */}
+          <div className="p-4 rounded-xl bg-[#07090e] border border-[#162035] space-y-2 flex flex-col justify-between">
+            <div>
+              <div className="text-[10px] text-[#38bdf8] font-bold uppercase tracking-wider">Group 1: Single-File</div>
+              <div className="text-xs text-[#94a3b8] font-sans mt-1">Direct endpoint &amp; parameter lookups</div>
+              <div className="mt-3 space-y-1 text-xs">
+                <div className="flex justify-between text-[#10b981] font-bold">
+                  <span>gemma3:4b</span>
+                  <span>47.1% 🏆</span>
+                </div>
+                <div className="flex justify-between text-[#64748b]">
+                  <span>codellama:7b</span>
+                  <span>28.6%</span>
+                </div>
+                <div className="flex justify-between text-[#64748b]">
+                  <span>starcoder2:3b</span>
+                  <span>14.3%</span>
+                </div>
+              </div>
+            </div>
+            <p className="text-[10.5px] font-sans text-[#8b949e] border-t border-[#162035] pt-2 mt-2 leading-relaxed">
+              <strong>Why Gemma Won:</strong> Precise keyword grounding in single context chunks without generating extraneous wrappers.
+            </p>
+          </div>
+
+          {/* Group 2 */}
+          <div className="p-4 rounded-xl bg-[#07090e] border border-[#162035] space-y-2 flex flex-col justify-between">
+            <div>
+              <div className="text-[10px] text-[#a78bfa] font-bold uppercase tracking-wider">Group 2: Two-File Cross</div>
+              <div className="text-xs text-[#94a3b8] font-sans mt-1">Cross-referencing disjoint specifications</div>
+              <div className="mt-3 space-y-1 text-xs">
+                <div className="flex justify-between text-[#10b981] font-bold">
+                  <span>gemma3:4b</span>
+                  <span>46.4% 🏆</span>
+                </div>
+                <div className="flex justify-between text-[#38bdf8] font-semibold">
+                  <span>codellama:7b</span>
+                  <span>44.8%</span>
+                </div>
+                <div className="flex justify-between text-[#64748b]">
+                  <span>starcoder2:3b</span>
+                  <span>14.3%</span>
+                </div>
+              </div>
+            </div>
+            <p className="text-[10.5px] font-sans text-[#8b949e] border-t border-[#162035] pt-2 mt-2 leading-relaxed">
+              <strong>Why Tied:</strong> Both Gemma and CodeLlama successfully cross-correlated separate auth guides with endpoint specs.
+            </p>
+          </div>
+
+          {/* Group 3 */}
+          <div className="p-4 rounded-xl bg-[#07090e] border border-[#162035] space-y-2 flex flex-col justify-between">
+            <div>
+              <div className="text-[10px] text-[#fb7185] font-bold uppercase tracking-wider">Group 3: Multi-Hop</div>
+              <div className="text-xs text-[#94a3b8] font-sans mt-1">3+ file sequential dependency traces</div>
+              <div className="mt-3 space-y-1 text-xs">
+                <div className="flex justify-between text-[#10b981] font-bold">
+                  <span>codellama:7b</span>
+                  <span>50.0% 🏆</span>
+                </div>
+                <div className="flex justify-between text-[#64748b]">
+                  <span>gemma3:4b</span>
+                  <span>30.0%</span>
+                </div>
+                <div className="flex justify-between text-[#64748b]">
+                  <span>starcoder2:3b</span>
+                  <span>0.0%</span>
+                </div>
+              </div>
+            </div>
+            <p className="text-[10.5px] font-sans text-[#8b949e] border-t border-[#162035] pt-2 mt-2 leading-relaxed">
+              <strong>Why CodeLlama Won:</strong> Larger 6.7B context memory preserved sequential order (e.g. GitHub push → CI/CD → Slack alert).
+            </p>
+          </div>
+
+          {/* Group 4 */}
+          <div className="p-4 rounded-xl bg-[#07090e] border border-[#162035] space-y-2 flex flex-col justify-between">
+            <div>
+              <div className="text-[10px] text-[#fbbf24] font-bold uppercase tracking-wider">Group 4: Decoy &amp; Failure</div>
+              <div className="text-xs text-[#94a3b8] font-sans mt-1">Hard negatives &amp; conflicting params</div>
+              <div className="mt-3 space-y-1 text-xs">
+                <div className="flex justify-between text-[#10b981] font-bold">
+                  <span>gemma3:4b</span>
+                  <span>61.3% 🏆</span>
+                </div>
+                <div className="flex justify-between text-[#64748b]">
+                  <span>codellama:7b</span>
+                  <span>37.5%</span>
+                </div>
+                <div className="flex justify-between text-[#64748b]">
+                  <span>starcoder2:3b</span>
+                  <span>0.0%</span>
+                </div>
+              </div>
+            </div>
+            <p className="text-[10.5px] font-sans text-[#8b949e] border-t border-[#162035] pt-2 mt-2 leading-relaxed">
+              <strong>Why Gemma Won:</strong> Followed negative constraints; correctly stated info was missing instead of inventing endpoints.
+            </p>
+          </div>
+
+          {/* Group 5 */}
+          <div className="p-4 rounded-xl bg-[#07090e] border border-[#162035] space-y-2 flex flex-col justify-between">
+            <div>
+              <div className="text-[10px] text-[#34d399] font-bold uppercase tracking-wider">Group 5: Code Gen</div>
+              <div className="text-xs text-[#94a3b8] font-sans mt-1">Executable Python &amp; unit assertions</div>
+              <div className="mt-3 space-y-1 text-xs">
+                <div className="flex justify-between text-[#10b981] font-bold">
+                  <span>gemma3:4b</span>
+                  <span>66.7% 🏆</span>
+                </div>
+                <div className="flex justify-between text-[#64748b]">
+                  <span>codellama:7b</span>
+                  <span>50.0%</span>
+                </div>
+                <div className="flex justify-between text-[#64748b]">
+                  <span>starcoder2:3b</span>
+                  <span>16.7%</span>
+                </div>
+              </div>
+            </div>
+            <p className="text-[10.5px] font-sans text-[#8b949e] border-t border-[#162035] pt-2 mt-2 leading-relaxed">
+              <strong>Why Gemma Won:</strong> Self-contained scripts matching exact assertion parameters without unrequested outer wrappers.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── StarCoder2 3B Failure Mode Deep-Dive ── */}
+      <div className="p-6 rounded-2xl bg-[#140b0d] border border-[#3b191e] space-y-4 shadow-xl">
+        <div className="flex items-center gap-2.5 text-sm font-bold font-mono text-[#f87171]">
+          <span className="text-lg">⚠️</span>
+          <span>Architectural Failure Analysis: Why StarCoder2 3B Failed Open API Queries</span>
+        </div>
+
+        <p className="text-xs text-[#fca5a5] leading-relaxed font-sans">
+          In our standardized benchmark, <code className="text-[#fbbf24] bg-[#221013] px-1.5 py-0.5 rounded font-mono">starcoder2:3b</code> scored only <strong>9.62% correctness</strong> with 21 zero-scores and 8 hard timeouts. Our telemetry and output audit revealed 3 fundamental architectural root causes:
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-sans">
+          <div className="p-4 rounded-xl bg-[#090506] border border-[#2b1216] space-y-1.5">
+            <span className="font-bold text-[#fbbf24] font-mono block">1. Base Model vs. Instruction Tuned</span>
+            <p className="text-[#94a3b8] leading-relaxed">
+              StarCoder2 is a pure <em>Fill-In-the-Middle (FIM)</em> code completion model, not instruction fine-tuned. When given developer questions, it treated the prompt as code comments and hallucinated multiple-choice quizzes (e.g. <code className="text-[10.5px] font-mono text-[#f87171]">- [ ] email - [x] name</code>) instead of answering.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-xl bg-[#090506] border border-[#2b1216] space-y-1.5">
+            <span className="font-bold text-[#f87171] font-mono block">2. Infinite Loops &amp; 60s Timeouts</span>
+            <p className="text-[#94a3b8] leading-relaxed">
+              Without conversational stop token discipline (<code className="text-[10.5px] font-mono text-[#f87171]">&lt;|endoftext|&gt;</code>), StarCoder repeatedly looped prompt text until hitting our 60.0s safety cutoff on 8 questions (Q4, Q5, Q7, Q8, Q9, Q14, Q15, Q26) with zero usable tokens.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-xl bg-[#090506] border border-[#2b1216] space-y-1.5">
+            <span className="font-bold text-[#a78bfa] font-mono block">3. Ungrounded Imports Regurgitation</span>
+            <p className="text-[#94a3b8] leading-relaxed">
+              On Q18 and Q21, rather than synthesizing grounded cURL or requests calls, it regurgitated generic JavaScript boilerplate (<code className="text-[10.5px] font-mono text-[#a78bfa]">import &#123; get &#125; from 'lodash'</code>) completely disconnected from the retrieved OpenAPI YAML specs.
+            </p>
           </div>
         </div>
       </div>

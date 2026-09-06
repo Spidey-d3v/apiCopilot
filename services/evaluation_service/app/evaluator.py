@@ -160,7 +160,7 @@ Provide production-ready code examples (e.g. cURL, Python, TypeScript) with corr
 
     t_start = time.perf_counter()
     try:
-        with httpx.Client(timeout=300.0) as client:
+        with httpx.Client(timeout=60.0) as client:
             llm_resp = client.post(
                 f"{OLLAMA_URL}/api/generate",
                 json={"model": model, "prompt": prompt, "stream": False}

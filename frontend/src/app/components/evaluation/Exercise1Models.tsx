@@ -5,6 +5,10 @@ import { EVALUATION_DATA } from './evaluationData';
 export function Exercise1Models() {
   const [copiedPrompt, setCopiedPrompt] = useState(false);
 
+  const gemmaSummary = EVALUATION_DATA.exercise_1.models.find(m => m.model === 'gemma3:4b');
+  const codellamaSummary = EVALUATION_DATA.exercise_1.models.find(m => m.model === 'codellama:7b');
+  const starcoderSummary = EVALUATION_DATA.exercise_1.models.find(m => m.model === 'starcoder2:3b');
+
   const standardizedPrompt = `You are an Enterprise API Copilot, an expert AI assistant specializing in API integrations, endpoint specifications, and developer code synthesis.
 Answer the developer's question accurately, completely, and concisely based on the provided API documentation context below.
 Provide production-ready code examples (e.g. cURL, Python, TypeScript) with correct endpoints, parameters, and headers where applicable.
@@ -104,8 +108,8 @@ Provide production-ready code examples (e.g. cURL, Python, TypeScript) with corr
             </div>
 
             <div className="pt-3 border-t border-[#161c2b] text-[11px] font-mono text-[#10b981] flex items-center justify-between">
-              <span>Avg Correctness: <strong>82.56%</strong></span>
-              <span className="text-[#60a5fa]">Latency: <strong>15.75s</strong></span>
+              <span>Avg Correctness: <strong>{((gemmaSummary?.average_correctness ?? 0.4808) * 100).toFixed(1)}%</strong></span>
+              <span className="text-[#60a5fa]">Latency: <strong>{(gemmaSummary?.average_latency_seconds ?? 33.21).toFixed(2)}s</strong></span>
             </div>
           </div>
 
@@ -159,8 +163,8 @@ Provide production-ready code examples (e.g. cURL, Python, TypeScript) with corr
             </div>
 
             <div className="pt-3 border-t border-[#161c2b] text-[11px] font-mono text-[#10b981] flex items-center justify-between">
-              <span>Code Pass Rate: <strong>100.0%</strong></span>
-              <span className="text-[#60a5fa]">Latency: <strong>25.09s</strong></span>
+              <span>Avg Correctness: <strong>{((codellamaSummary?.average_correctness ?? 0.4090) * 100).toFixed(1)}%</strong></span>
+              <span className="text-[#60a5fa]">Latency: <strong>{(codellamaSummary?.average_latency_seconds ?? 47.89).toFixed(2)}s</strong></span>
             </div>
           </div>
 
@@ -208,14 +212,14 @@ Provide production-ready code examples (e.g. cURL, Python, TypeScript) with corr
               <div className="mt-4 pt-3 border-t border-[#161c2b] space-y-1.5 text-xs text-[#94a3b8]">
                 <div className="text-[11px] font-mono text-[#cbd5e1] font-semibold">Key Capabilities &amp; Limitations:</div>
                 <p className="text-[11.5px] leading-relaxed">
-                  Effective for inline code auto-completion; lacks conversational instruction tuning leading to hypothetical prompt completions.
+                  Raw code-completion model without conversational instruction tuning. Loops repeatedly, hallucinating multi-choice quizzes or hitting 60s timeouts on open Q&amp;A.
                 </p>
               </div>
             </div>
 
             <div className="pt-3 border-t border-[#161c2b] text-[11px] font-mono text-[#f87171] flex items-center justify-between">
-              <span>Avg Correctness: <strong>50.58%</strong></span>
-              <span className="text-[#fbbf24]">Latency: <strong>63.25s</strong></span>
+              <span>Avg Correctness: <strong>{((starcoderSummary?.average_correctness ?? 0.0962) * 100).toFixed(1)}%</strong></span>
+              <span className="text-[#fbbf24]">Latency: <strong>{(starcoderSummary?.average_latency_seconds ?? 32.93).toFixed(2)}s</strong></span>
             </div>
           </div>
         </div>
